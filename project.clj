@@ -11,6 +11,8 @@
                  [org.slf4j/slf4j-log4j12 "1.6.0"]
                  [org.slf4j/slf4j-api "1.6.0"]
                  [swank-clojure "1.3.0-SNAPSHOT"]
-                 [clj-stacktrace "0.2.0"]]
+                 [clj-stacktrace "0.2.0"]
+                 [clj-native "0.9.1-SNAPSHOT"]
+                 [tachyon "0.0.1-SNAPSHOT"]]
   :dev-dependencies [[swank-clojure "1.3.0-SNAPSHOT"]]
   :main demogorgon.core)
