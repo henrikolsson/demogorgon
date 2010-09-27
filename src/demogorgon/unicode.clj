@@ -12,7 +12,7 @@
                 (let [tokens (.split line "\t")
                       ^String name (.trim (aget tokens 0))
                       ^String codepoint (.trim (aget tokens 1))]
-                  (if (or (.startsWith (.toLowerCase name) symbol)
+                  (if (or (= symbol (.toLowerCase name))
                           (= symbol (.toLowerCase codepoint)))
                     {:name name :codepoint codepoint}
                     nil))) lines)))))
