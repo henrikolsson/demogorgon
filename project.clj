@@ -13,6 +13,7 @@
                  [swank-clojure "1.3.0-SNAPSHOT"]
                  [clj-stacktrace "0.2.0"]
                  [clj-native "0.9.1-SNAPSHOT"]
+                 [clj-sandbox "0.4.2-SNAPSHOT"]
                  [tachyon "0.0.1-SNAPSHOT"]]
   :dev-dependencies [[swank-clojure "1.3.0-SNAPSHOT"]]
   :main demogorgon.core)
