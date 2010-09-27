@@ -4,22 +4,16 @@
   (:require [tachyon.core :as irc])
   (:require [tachyon.hooks :as irc-hooks])
   (:use [clj-stacktrace core repl]
-        [demogorgon.config])
+        [demogorgon.config]
+        [demogorgon.unicode :only (unicode-hook)])
   (:gen-class))
 
 (def *connection* (irc/create (:irc config)))
-
-(defn bacon-hook [irc object match]
-  (let [nick (:nick (:prefix object))]
-    (if (.startsWith nick "kerio")
-      "No bacon for you."
-      "BACON!!")))
-
 (defn -main[& args]
   (try 
    (let [logger (Logger/getLogger "main")]
      (swank/start-repl 4006)
-     (irc-hooks/add-message-hook *connection* #" ?bacon" bacon-hook)
+     (irc-hooks/remove-message-hook *connection* #"\.u ?(.*)?" #'unicode-hook)
      (irc/connect *connection*))
    (catch Exception e
      (pst e))))
