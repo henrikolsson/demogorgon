@@ -215,8 +215,8 @@
 
 (defn handle-xlogfile-line [irc line]
   (let [data (parse-line line)]
-    (if (and (or (< (:turns data) 10)
-                 (< (:score data) 10))
+    (if (and (or (< (Integer/parseInt (:turns data)) 10)
+                 (< (Integer/parseInt (:points data)) 10))
              (or (= (:death data) "quit")
                  (= (:death data) "escaped")))
       (add-scum (:player data)))
@@ -333,6 +333,9 @@
 
 (defn nh-start [nh]
   (doseq [thread nh]
+   (.setUncaughtExceptionHandler thread (proxy [Thread$UncaughtExceptionHandler] []
+    (uncaughtException [thread throwable]
+    (stacktrace/pst throwable))))
     (.start thread)))
 
 (defn nh-stop [nh]
