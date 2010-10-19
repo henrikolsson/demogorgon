@@ -192,7 +192,7 @@
                 (do
                   (callback line)
                   ;; assumes ascii..
-                  (var-set new-length (+ length (.length line) 1)))))))
+                  (var-set new-length (.getFilePointer ra)))))))
         (if (not (Thread/interrupted))
           (recur (var-get new-length)))))))
 
