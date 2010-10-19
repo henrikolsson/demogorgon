@@ -6,11 +6,13 @@
   (:use [clj-stacktrace core repl]
         [demogorgon.config]
         [demogorgon.unicode :only (unicode-hook)]
+        [demogorgon.web :only (start-web stop-web)]
         [demogorgon.nh :only (online-players-hook last-dump-hook nh-start nh-init nh-stop)])
   (:gen-class))
 
 (def *connection* (irc/create (:irc config)))
 (def *nh* (nh-init *connection*))
+(def *web* (ref nil))
 
 (defn -main[& args]
   (try 
@@ -23,7 +25,9 @@
      (irc-hooks/add-message-hook *connection* #"\.last ?(.*)?" #'last-dump-hook)
      (irc-hooks/add-message-hook *connection* #"\.lastdump ?(.*)?" #'last-dump-hook)
      (irc-hooks/add-message-hook *connection* #"\.lasturl ?(.*)?" #'last-dump-hook)
-     (irc/connect *connection*))
+     (irc/connect *connection*)
+     (dosync
+      (alter *web* (start-web))))
    (catch Exception e
      (pst e))))
 
