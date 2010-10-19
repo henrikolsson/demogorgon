@@ -1,11 +1,13 @@
 (ns demogorgon.nh
-  (:import [java.io File FilenameFilter RandomAccessFile])
+  (:import [java.io File FilenameFilter RandomAccessFile]
+           [org.apache.log4j Logger])
   (:require [clj-stacktrace.repl :as stacktrace]
             [tachyon.core :as irc]
             [demogorgon.twitter :as twitter])
   (:use	[clojure.contrib.duck-streams :only (reader)]
         [demogorgon.config]))
 
+(def logger (Logger/getLogger "demogorgon.nh"))
 (def scummers (ref {}))
 
 (def roles
@@ -148,15 +150,18 @@
       (str "No dumpfile for " nick))))
 
 (defn add-scum [player]
+  (.info logger (str "adding scum " player))
   (dosync
    (alter scummers assoc player (+ (System/currentTimeMillis) 30000))))
 
 (defn is-scum [player]
   (dosync 
    (if (contains? @scummers player)
-     (if (> (get @scummers player) (System/currentTimeMillis))
-       (do (alter scummers dissoc player)
-           false)
+     (if (< (get @scummers player) (System/currentTimeMillis))
+       (do
+         (.info logger "removing scum " player)
+         (alter scummers dissoc player)
+         false)
        true))))
 
 (defn online-players-hook [irc object match]
@@ -286,7 +291,7 @@
             (str (:player data) " has declined a wish")
             (str (:player data) " wished for '" (:wish data) "' after " (:turns data) " turns."))
     
-    :shout (format "Your hear %s distant rumbling%s"
+    :shout (format "You hear %s distant rumbling%s"
                    (possessive (:player data))
                    (if (= (:shout data) "")
                      "."
