@@ -89,7 +89,7 @@
         keys (map (fn [x] (keyword (aget (.split x "=") 0))) props)
         values (map (fn [x] (let [tokens (.split x "=")]
                               (if (> (alength tokens) 1)
-                                (aget (.split x "=") 1)
+                                (aget tokens 1)
                                 ""))) props)]
     (zipmap keys values)))
 
