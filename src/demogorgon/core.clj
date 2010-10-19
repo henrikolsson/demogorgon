@@ -27,7 +27,7 @@
      (irc-hooks/add-message-hook *connection* #"\.lasturl ?(.*)?" #'last-dump-hook)
      (irc/connect *connection*)
      (dosync
-      (alter *web* (start-web))))
+      (ref-set *web* (start-web))))
    (catch Exception e
      (pst e))))
 
