@@ -14,6 +14,7 @@
                  [clj-stacktrace "0.2.0"]
                  [clj-native "0.9.1-SNAPSHOT"]
                  [clj-sandbox "0.4.2-SNAPSHOT"]
-                 [tachyon "0.0.1-SNAPSHOT"]]
+                 [tachyon "0.0.1-SNAPSHOT"]
+                 [org.twitter4j/twitter4j-core "2.1.3"]]
   :dev-dependencies [[swank-clojure "1.3.0-SNAPSHOT"]]
   :main demogorgon.core)
