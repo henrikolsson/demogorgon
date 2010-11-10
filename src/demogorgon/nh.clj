@@ -124,9 +124,9 @@
                    player (aget tokens 0)
                    date (aget tokens 1)
                    ttyrec (File. (str "/opt/nethack.nu/dgldir/ttyrec/" player "/" date))
-                   idle (unchecked-divide
-                         (int (- (System/currentTimeMillis) (.lastModified ttyrec)))
-                         1000)
+                   idle (int (/
+                              (int (- (System/currentTimeMillis) (.lastModified ttyrec)))
+                              1000))
                    whereis (File. (str "/opt/nethack.nu/var/unnethack/" player ".whereis"))]
                (with-open [rdr (reader whereis)]
                  (let [data (parse-line (first (line-seq rdr)))]
