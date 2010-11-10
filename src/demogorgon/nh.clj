@@ -347,8 +347,10 @@
       (announce irc (make-livelog-out data)))))
 
 (defn run-watcher [watcher]
-  (with-local-vars [xlogfile-length (.length (File. "/opt/nethack.nu/var/unnethack/xlogfile"))
-                    livelog-length (.length (File. "/opt/nethack.nu/var/unnethack/livelog"))]
+  (with-local-vars [files {"livelog"   {:length (.length (File. (str (:un-dir config) "livelog")))
+                                        :callback #'handle-livelog-line}
+                           "xlogfile"  {:length (.length (File. (str (:un-dir config) "xlogfile")))
+                                        :callback #'handle-livelog-line}}]
     (while
      (not (Thread/interrupted))
      (.debug logger (str "Waiting for events.."))
@@ -356,29 +358,23 @@
        (.debug logger "Got events")
        (doseq [event (.pollEvents key)]
          (.debug logger (str "context " (.context event)))
-         (if (= (.toString (.context event)) "livelog")
-           (let [ra (RandomAccessFile. "/opt/nethack.nu/var/unnethack/livelog" "r")]
-             (.debug logger "livelog")
-             (.seek ra (var-get livelog-length))
-             (loop [line (.readLine ra)]
-               (if line
-                 (do 
-                   (handle-livelog-line (:irc @watcher) line)
-                   (var-set livelog-length (.getFilePointer ra))
-                   (recur (.readLine ra)))))
-             (.close ra)))
-         (if (= (.toString (.context event)) "xlogfile")
-           (let [ra (RandomAccessFile. "/opt/nethack.nu/var/unnethack/xlogfile" "r")]
-             (.debug logger "xlogfile")
-             (.seek ra (var-get xlogfile-length))
-             (loop [line (.readLine ra)]
-               (if line
-                 (do 
-                   (handle-xlogfile-line (:irc @watcher) line)
-                   (var-set xlogfile-length (.getFilePointer ra))
-                   (recur (.readLine ra)))))
-             (.close ra))))
-       (.reset key)))))
+         (let [fn (.toString (.context event))
+               file (get (var-get files) fn)]
+           (if file
+             (do
+               (.debug logger (str "file modified: " fn))
+               (let [ra (RandomAccessFile. (str (:un-dir config) fn))]
+                 (.seek ra (:length file))
+                 (loop [line (.readLine ra)]
+                   (if line
+                     (do 
+                       ((:callback file) (:irc @watcher) line)
+                       (var-set files (assoc (var-get files)
+                                        fn
+                                        (assoc (get fn (var-get files)) :length (.getFilePointer ra))))
+                       (recur (.readLine ra)))))
+                 (.close ra)))))
+         (.reset key))))))
 
 (defn nh-init [irc]
   (let [watcher (ref (struct-map watcher-instance
