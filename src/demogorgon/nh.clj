@@ -53,6 +53,20 @@
       "in Vlad's Tower"
       "on The Elemental Planes"])
 
+(def achievements
+     ["obtained the Bell of Opening"
+      "entered Gehennom"
+      "obtained the Candelabrum of Invocation"
+      "obtained the Book of the Dead"
+      "performed the invocation ritual"
+      "obtained the amulet"
+      "entered the elemental planes"
+      "entered the astral plane"
+      "ascended"
+      "obtained the luckstone from the Mines"
+      "obtained the sokoban prize"
+      "defeated Medusa"])
+
 (defn zone [zonenum]
   (let [i (if (isa? (class zonenum) String)
             (Integer/parseInt zonenum)
@@ -324,6 +338,20 @@
                           (:turns data))
     
     :game_action (make-game-action-out data)
+
+    :achieve (let [achieve-diff (Integer/parseInt (.substring "0x800" 2) 16)]
+               (if (not (or (= achieve-diff 0)
+                            (= achieve-diff 0x200)
+                            (= achieve-diff 0x400)))
+                 (first (filter #(not (= nil %1))
+                                (map (fn [idx]
+                                       (if (bit-test achieve-diff idx)
+                                         (format "%s %s after %s turns."
+                                                 (:player data)
+                                                 (nth achievements idx)
+                                                 (:turns data))
+                                         nil))
+                                     (range (count achievements)))))))
     (str "unhandled line: " data)))
 
 (defn handle-livelog-line [irc line]
