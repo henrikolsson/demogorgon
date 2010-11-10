@@ -287,7 +287,7 @@
                 (format "%s the%s resumes the adventure."
                         (:player data)
                         (:character data))
-                (format "%sthe %s %s resumes the adventure."
+                (format "%s the %s %s resumes the adventure."
                         (:player data)
                         (race (:race data))
                         (role (:role data))))
@@ -311,7 +311,16 @@
                      "."
                      (format ": \"%s\"" (:shout data))))
     
-    :killed_uniq (str (:player data) " killed " (:killed_uniq data) " after " (:turns data))
+    :genocided_monster (format "%s genocided %s%s"
+                               (:player data)
+                               (if (= (:dungeon_wide data) "yes")
+                                 "all "
+                                 "")
+                               (:genocided_monster data))
+    
+    :killed_uniq (str (:player data) " killed " (:killed_uniq data) " after " (:turns data) " turns.")
+    
+    :killed_shopkeeper (str (:player data) " killed the shopkeeper " (:killed_shopkeeper data) " after " (:turns data))
     
     :shoplifted (format "%s stole %s zorkmids worth of merchandise from %s%s %s after %s turns"
                         (:player data)
