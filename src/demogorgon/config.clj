@@ -1,8 +1,7 @@
 (ns demogorgon.config)
 
 (def config
-     {:xlogfile "/tmp/xlogfile"
-      :livelog "/tmp/livelog"
+     {:un-dir "/opt/nethack.nu/var/unnethack/"
       :twitter {:consumer_key ""
                 :consumer_secret ""
                 :oauth_token ""

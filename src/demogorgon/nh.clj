@@ -1,11 +1,14 @@
 (ns demogorgon.nh
   (:import [java.io File FilenameFilter RandomAccessFile]
-           [org.apache.log4j Logger])
+           [org.apache.log4j Logger]
+           [java.nio.file FileSystems StandardWatchEventKind])
   (:require [clj-stacktrace.repl :as stacktrace]
             [tachyon.core :as irc]
             [demogorgon.twitter :as twitter])
   (:use	[clojure.contrib.duck-streams :only (reader)]
         [demogorgon.config]))
+
+(defstruct watcher-instance :watch-service :events :thread :irc)
 
 (def logger (Logger/getLogger "demogorgon.nh"))
 (def scummers (ref {}))
@@ -198,34 +201,9 @@
                      (format-time (:idle data))))
            players))))
 
-(defn file-line-poller-loop [fn callback]
-  (let [fd (File. fn)]
-    (loop [length (Long/valueOf (.length fd))]
-      (Thread/sleep 1000)
-      (with-local-vars [new-length length]
-        (if (> (.length fd) length)
-          (let [ra (RandomAccessFile. fd "r")]
-            (.seek ra length)
-            (let [line (.readLine ra)]
-              (if line
-                (do
-                  (callback line)
-                  ;; assumes ascii..
-                  (var-set new-length (.getFilePointer ra)))))))
-        (if (not (Thread/interrupted))
-          (recur (var-get new-length)))))))
-
 (defn announce [irc msg]
   (doseq [channel (:channels (:irc config))]
     (irc/send-message irc channel msg)))
-
-(defn create-file-line-poller [fn callback]
-  (let [thread (Thread. (proxy [Runnable] []
-                          (run []
-                               (file-line-poller-loop fn callback)))
-                        (str "poller-" fn))]
-    (.setDaemon thread true)
-    thread))
 
 (defn truncate [str max]
   (if (> (.length str) max)
@@ -368,19 +346,63 @@
     (if (not (is-scum (:player data)))
       (announce irc (make-livelog-out data)))))
 
+(defn run-watcher [watcher]
+  (with-local-vars [xlogfile-length (.length (File. "/opt/nethack.nu/var/unnethack/xlogfile"))
+                    livelog-length (.length (File. "/opt/nethack.nu/var/unnethack/livelog"))]
+    (while
+     (not (Thread/interrupted))
+     (.debug logger (str "Waiting for events.."))
+     (let [key (.take (:watch-service @watcher))]
+       (.debug logger "Got events")
+       (doseq [event (.pollEvents key)]
+         (.debug logger (str "context " (.context event)))
+         (if (= (.toString (.context event)) "livelog")
+           (let [ra (RandomAccessFile. "/opt/nethack.nu/var/unnethack/livelog" "r")]
+             (.debug logger "livelog")
+             (.seek ra (var-get livelog-length))
+             (loop [line (.readLine ra)]
+               (if line
+                 (do 
+                   (handle-livelog-line (:irc @watcher) line)
+                   (var-set livelog-length (.getFilePointer ra))
+                   (recur (.readLine ra)))))
+             (.close ra)))
+         (if (= (.toString (.context event)) "xlogfile")
+           (let [ra (RandomAccessFile. "/opt/nethack.nu/var/unnethack/xlogfile" "r")]
+             (.debug logger "xlogfile")
+             (.seek ra (var-get xlogfile-length))
+             (loop [line (.readLine ra)]
+               (if line
+                 (do 
+                   (handle-xlogfile-line (:irc @watcher) line)
+                   (var-set xlogfile-length (.getFilePointer ra))
+                   (recur (.readLine ra)))))
+             (.close ra))))
+       (.reset key)))))
+
 (defn nh-init [irc]
-  (let [threads [(create-file-line-poller (:xlogfile config) (partial #'handle-xlogfile-line irc))
-                 (create-file-line-poller (:livelog config) (partial #'handle-livelog-line irc))]]
-    threads))
+  (let [watcher (ref (struct-map watcher-instance
+                       :watch-service (.newWatchService (FileSystems/getDefault))
+                       :thread nil
+                       :irc irc))]
+    (dosync
+     (ref-set watcher (assoc @watcher
+                        :thread (Thread. (proxy [Runnable] []
+                                           (run []
+                                                (run-watcher watcher)))))))
+    (.register (.toPath (File. (:un-dir config)))
+               (:watch-service @watcher)
+               (into-array [StandardWatchEventKind/ENTRY_MODIFY]))
+    (.setUncaughtExceptionHandler
+     (:thread @watcher)
+     (proxy [Thread$UncaughtExceptionHandler] []
+       (uncaughtException [thread throwable]
+                          (.error logger "bah" throwable)
+                          (stacktrace/pst throwable))))
+    watcher))
 
-(defn nh-start [nh]
-  (doseq [thread nh]
-   (.setUncaughtExceptionHandler thread (proxy [Thread$UncaughtExceptionHandler] []
-    (uncaughtException [thread throwable]
-    (stacktrace/pst throwable))))
-    (.start thread)))
+(defn nh-stop [watcher]
+  (.close (:watch-service @watcher)))
 
-(defn nh-stop [nh]
-  (doseq [thread nh]
-    (.interrupt thread)))
-
+(defn nh-start [watcher]
+  (.start (:thread @watcher)))
