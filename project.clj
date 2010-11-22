@@ -15,6 +15,7 @@
                  [clj-native "0.9.1-SNAPSHOT"]
                  [clj-sandbox "0.4.2-SNAPSHOT"]
                  [tachyon "0.0.1-SNAPSHOT"]
-                 [org.twitter4j/twitter4j-core "2.1.3"]]
+                 [org.twitter4j/twitter4j-core "2.1.3"]
+                 [org.xerial/sqlite-jdbc "3.7.2"]]
   :dev-dependencies [[swank-clojure "1.3.0-SNAPSHOT"]]
   :main demogorgon.core)
