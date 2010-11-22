@@ -4,8 +4,9 @@
            [java.nio.file FileSystems StandardWatchEventKind])
   (:require [clj-stacktrace.repl :as stacktrace]
             [tachyon.core :as irc]
-            [demogorgon.twitter :as twitter])
-  (:use	[clojure.contrib.duck-streams :only (reader)]
+            [demogorgon.twitter :as twitter]
+            [clojure.contrib.sql :as sql])
+  (:use	[clojure.contrib.duck-streams :only (reader read-lines)]
         [demogorgon.config]))
 
 (defstruct watcher-instance :watch-service :events :thread :irc)
@@ -13,6 +14,10 @@
 (def logger (Logger/getLogger "demogorgon.nh"))
 (def scummers (ref {}))
 
+(def db {:classname "org.sqlite.JDBC"
+                    :subprotocol "sqlite"
+                    :subname "/tmp/nh.db"
+                    :create true})
 (def roles
      {"arc" "Archeologist"
       "bar" "Barbarian"
@@ -154,7 +159,7 @@
                       (map #(File. (str "/srv/un.nethack.nu/users/" nick "/dumps/" nick ".last" %)) exts)))]
     (if file
       (let [fp (.getCanonicalPath file)]
-        (str "http://un.nethack.nu/users/" nick "/dumps" (.substring fp (.lastIndexOf fp "/"))))
+        (str "http://un.nethack.nu/user/" nick "/dumps" (.substring fp (.lastIndexOf fp "/"))))
       nil)))
         
 (defn last-dump-hook [irc object match]
@@ -211,6 +216,9 @@
     str))
 
 (defn handle-xlogfile-line [irc line]
+  (sql/with-connection db
+    (sql/transaction
+     (insert-xlogfile-line-db line)))
   (let [data (parse-line line)]
     (if (and (or (< (Integer/parseInt (:turns data)) 10)
                  (< (Integer/parseInt (:points data)) 10))
@@ -242,7 +250,7 @@
                                            (:turns data)
                                            (:death data))
                                    120)
-            url (twitter/shorten-url (format "http://un.nethack.nu/users/%s/dumps/%s.%s.txt.html"
+            url (twitter/shorten-url (format "http://un.nethack.nu/user/%s/dumps/%s.%s.txt.html"
                                              (:name data)
                                              (:name data)
                                              (:endtime data)))
@@ -298,12 +306,12 @@
     
     :killed_uniq (str (:player data) " killed " (:killed_uniq data) " after " (:turns data) " turns.")
     
-    :killed_shopkeeper (str (:player data) " killed the shopkeeper " (:killed_shopkeeper data) " after " (:turns data))
+    :killed_shopkeeper (str (:player data) " killed the shopkeeper "
+                            (:killed_shopkeeper data) " after " (:turns data) " turns")
     
-    :shoplifted (format "%s stole %s zorkmids worth of merchandise from %s%s %s after %s turns"
+    :shoplifted (format "%s stole %s zorkmids worth of merchandise from %s %s after %s turns"
                         (:player data)
                         (:shoplifted data)
-                        (:shopkeeper data)
                         (possessive (:shopkeeper data))
                         (:shop data)
                         (:turns data))
@@ -326,31 +334,33 @@
     
     :game_action (make-game-action-out data)
 
-    :achieve (let [achieve-diff (Integer/parseInt (.substring "0x800" 2) 16)]
-               (if (not (or (= achieve-diff 0)
-                            (= achieve-diff 0x200)
-                            (= achieve-diff 0x400)))
-                 (first (filter #(not (= nil %1))
-                                (map (fn [idx]
-                                       (if (bit-test achieve-diff idx)
-                                         (format "%s %s after %s turns."
-                                                 (:player data)
-                                                 (nth achievements idx)
-                                                 (:turns data))
-                                         nil))
-                                     (range (count achievements)))))))
+    :achieve_diff (let [achieve-diff (Integer/parseInt (.substring (:achieve_diff data) 2) 16)]
+                    (if (not (or (= achieve-diff 0)
+                                 (= achieve-diff 0x200)
+                                 (= achieve-diff 0x400)))
+                      (first (filter #(not (= nil %1))
+                                     (map (fn [idx]
+                                            (if (bit-test achieve-diff idx)
+                                              (format "%s %s after %s turns."
+                                                      (:player data)
+                                                      (nth achievements idx)
+                                                      (:turns data))
+                                              nil))
+                                          (range (count achievements)))))))
     (str "unhandled line: " data)))
 
 (defn handle-livelog-line [irc line]
   (let [data (parse-line line)]
     (if (not (is-scum (:player data)))
-      (announce irc (make-livelog-out data)))))
+      (let [out (make-livelog-out data)]
+        (if out
+          (announce irc out))))))
 
 (defn run-watcher [watcher]
   (with-local-vars [files {"livelog"   {:length (.length (File. (str (:un-dir config) "livelog")))
                                         :callback #'handle-livelog-line}
                            "xlogfile"  {:length (.length (File. (str (:un-dir config) "xlogfile")))
-                                        :callback #'handle-livelog-line}}]
+                                        :callback #'handle-xlogfile-line}}]
     (while
      (not (Thread/interrupted))
      (.debug logger (str "Waiting for events.."))
@@ -363,7 +373,7 @@
            (if file
              (do
                (.debug logger (str "file modified: " fn))
-               (let [ra (RandomAccessFile. (str (:un-dir config) fn))]
+               (let [ra (RandomAccessFile. (str (:un-dir config) fn) "r")]
                  (.seek ra (:length file))
                  (loop [line (.readLine ra)]
                    (if line
@@ -371,7 +381,7 @@
                        ((:callback file) (:irc @watcher) line)
                        (var-set files (assoc (var-get files)
                                         fn
-                                        (assoc (get fn (var-get files)) :length (.getFilePointer ra))))
+                                        (assoc (get (var-get files) fn) :length (.getFilePointer ra))))
                        (recur (.readLine ra)))))
                  (.close ra)))))
          (.reset key))))))
@@ -400,5 +410,53 @@
 (defn nh-stop [watcher]
   (.close (:watch-service @watcher)))
 
+(defn insert-xlogfile-line-db [line]
+  (let [data (parse-line line)]
+    (let [record (assoc data :death_uniq (.replaceAll (:death data) ", while .*$", ""))]
+      (sql/insert-records :xlogfile
+                        record))))
+
+(defn nh-init-db []
+  (.info logger "re-initializing database..")
+  (if (.exists (File. "/tmp/nh.db"))
+    (.delete (File. "/tmp/nh.db")))
+  (sql/with-connection db
+    (sql/transaction
+     (sql/create-table
+      :xlogfile
+      [:id "INTEGER PRIMARY KEY AUTOINCREMENT"]
+      [:version "TEXT"]
+      [:points "INT"]
+      [:deathdnum "INT"]
+      [:deathlev "INT"]
+      [:maxlvl "INT"]
+      [:dlev_name "TEXT"]
+      [:hp "INT"]
+      [:maxhp "INT"]
+      [:deaths "INT"]
+      [:deathdate "DATE"]
+      [:birthdate "DATE"]
+      [:uid "INT"]
+      [:role "TEXT"]
+      [:race "TEXT"]
+      [:gender "TEXT"]
+      [:align "TEXT"]
+      [:name "TEXT"]
+      [:death "TEXT"]
+      [:death_uniq "TEXT"]
+      [:conduct "TEXT"]
+      [:turns "INT"]
+      [:achieve "TEXT"]
+      [:realtime "INT"]
+      [:starttime "TIMESTAMP"]
+      [:endtime "TIMESTAMP"]
+      [:gender0 "TEXT"]
+      [:align0 "TEXT"])
+     (let [lines (read-lines (str (:un-dir config) "xlogfile"))]
+       (doseq [line lines]
+         (insert-xlogfile-line-db line)))))
+  (.info logger "database initialized"))
+
 (defn nh-start [watcher]
+  (nh-init-db)
   (.start (:thread @watcher)))
