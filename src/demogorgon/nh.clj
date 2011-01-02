@@ -59,7 +59,8 @@
       "in Fort Ludios"
       "in the Black Market"
       "in Vlad's Tower"
-      "on The Elemental Planes"])
+      "on The Elemental Planes"
+      "in the Advent Calendar"])
 
 (def achievements
      ["obtained the Bell of Opening"
