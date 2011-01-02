@@ -429,6 +429,7 @@
       [:version "TEXT"]
       [:points "INT"]
       [:deathdnum "INT"]
+      [:deathdname "TEXT"]
       [:deathlev "INT"]
       [:maxlvl "INT"]
       [:dlev_name "TEXT"]
