@@ -118,6 +118,12 @@
                                 ""))) props)]
     (zipmap keys values)))
 
+(defn insert-xlogfile-line-db [line]
+  (let [data (parse-line line)]
+    (let [record (assoc data :death_uniq (.replaceAll (:death data) ", while .*$", ""))]
+      (sql/insert-records :xlogfile
+                        record))))
+
 (defn sanitize-nick [nick]
   (.replaceAll nick "[^\\p{Alnum}]" ""))
 
@@ -410,12 +416,6 @@
 
 (defn nh-stop [watcher]
   (.close (:watch-service @watcher)))
-
-(defn insert-xlogfile-line-db [line]
-  (let [data (parse-line line)]
-    (let [record (assoc data :death_uniq (.replaceAll (:death data) ", while .*$", ""))]
-      (sql/insert-records :xlogfile
-                        record))))
 
 (defn nh-init-db []
   (.info logger "re-initializing database..")
