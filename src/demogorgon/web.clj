@@ -39,6 +39,9 @@
      [:br]
      content]]))
 
+(defn page-not-found []
+  "<h1>Page not found</h1>")
+
 (defn make-dump-link [row]
   (let [base (str "/user/" (:name row) "/dumps/" (:name row ) "." (:endtime row))
         file-base (str "/srv/un.nethack.nu" base)
@@ -51,23 +54,26 @@
       [:a {:href (str base extension)} "dump #" (:id row)]
       [:div "No dump file for game " (:id row)])))
 
-(defn rs-to-table [rs]
-  [:table
-   [:tr
-    [:th "game"]
-    [:th "name"]
-    [:th "points"]
-    [:th "deathdate"]
-    [:th "death"]]
-   (map #'rs-row-to-tr rs)])
 
 (defn rs-row-to-tr [row]
   [:tr
    [:td [:a {:href (str "/game/" (:id row))} (:id row)]]
    [:td [:a {:href (str "/user/" (:name row))} (:name row)]]
    [:td (:points row)]
+   [:td (:turns row)]
    [:td (:deathdate row)]
    [:td [:a {:href (str "/cause/" (url-encode (:death_uniq row)))} (:death row)]]])
+
+(defn rs-to-table [rs]
+  [:table
+   [:tr
+    [:th "game"]
+    [:th "name"]
+    [:th "points"]
+    [:th "turns"]
+    [:th "deathdate"]
+    [:th "death"]]
+   (map #'rs-row-to-tr rs)])
 
 (defn game [id]
   (sql/with-connection db
@@ -119,11 +125,17 @@
            [:div
             [:h2 name]
             [:p (:games_played row) " games played, " (:ascensions row) " ascensions."]
-            [:br]
             [:a {:href (str "/user/" name "/dumps/")} "dumps"]
             [:br]
-            [:a {:href (str "/user/" name "/ttyrecs/")} "ttyrecs"]]))))))
-                                                                 
+            [:a {:href (str "/user/" name "/ttyrecs/")} "ttyrecs"]
+            [:br]
+            [:br]
+            (sql/with-query-results
+              rs2
+              ["select * from xlogfile where name = ? order by endtime desc limit 50" name]
+              (doall rs2)
+              (rs-to-table rs2))]))))))
+
 (defn users []
   (sql/with-connection db
     (sql/with-query-results
@@ -147,9 +159,6 @@
                (:count row) " " [:a {:href (str "/cause/" (url-encode (:death row)))} (:death row)]
                [:br]])
              rs)))))
-
-(defn page-not-found []
-  "<h1>Page not found</h1>")
 
 (defroutes main-routes
   (GET "/" [] (last-games 25))
