@@ -1,6 +1,6 @@
 (defproject demogorgon "1.0.0-SNAPSHOT"
   :description "demogorgon"
-  :dependencies [[org.clojure/clojure "1.2.0"]
+  :dependencies [[org.clojure/clojure "1.2.1"]
                  [org.clojure/clojure-contrib "1.2.0"]
                  [org.apache.mina/mina-core  "2.0.0-RC1"]
                  [log4j/log4j "1.2.14"]

@@ -307,7 +307,7 @@
     :genocided_monster (format "%s genocided %s%s"
                                (:player data)
                                (if (= (:dungeon_wide data) "yes")
-                                 "all "
+                                 "every "
                                  "")
                                (:genocided_monster data))
     

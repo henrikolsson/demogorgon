@@ -32,14 +32,17 @@
   (.gc (Runtime/getRuntime))
   (.debug logger (str "after  " (get-memory-info))))
 
+;(irc/disconnect *connection*)
 (defn rand-hook [irc object match]
   (let [words (.split (second match) " ")
         random (Random.)
         idx (.nextInt random (alength words))
         word (aget words idx)]
     word))
-
+;(println @*web*)
 ;(print-debug)
+;(dosync 
+; (assoc @*connection* :server-idx 0))
 (defn -main[& args]
   (try 
    (let [logger (Logger/getLogger "main")]
@@ -62,4 +65,3 @@
       (ref-set *web* (start-web))))
    (catch Exception e
      (pst e))))
-
