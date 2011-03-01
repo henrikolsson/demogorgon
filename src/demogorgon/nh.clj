@@ -263,7 +263,10 @@
                                              (:endtime data)))
             final-tweet (str tweet-prefix ", " url)]
         (announce irc out)
-        (twitter/tweet final-tweet)))))
+        (try 
+         (twitter/tweet final-tweet)
+         (catch Exception e
+           (.error logger "tweet failed" e)))))))
 
 (defn make-game-action-out [data]
   (condp = (:game_action data)
