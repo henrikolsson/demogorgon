@@ -456,7 +456,8 @@
       [:starttime "TIMESTAMP"]
       [:endtime "TIMESTAMP"]
       [:gender0 "TEXT"]
-      [:align0 "TEXT"])
+      [:align0 "TEXT"]
+      [:flags "TEXT"])
      (let [lines (read-lines (str (:un-dir config) "xlogfile"))]
        (doseq [line lines]
          (insert-xlogfile-line-db line)))))
