@@ -295,6 +295,25 @@
                        (:player data)
                        (:turns data))))
 
+(defn bitfield-to-int [bitfield]
+  (if (string? bitfield)
+    (if (or (.startsWith bitfield "0x")
+            (.startsWith bitfield "0X"))
+      (Integer/parseInt (.substring bitfield 2) 16)
+      (Integer/parseInt bitfield))
+    bitfield))
+
+(defn parse-bitfield [values bitfield]
+  (let [bitfield (if (integer? bitfield)
+                   bitfield
+                   (bitfield-to-int bitfield))]
+    (first (filter string?
+                   (map (fn [idx]
+                          (if (bit-test bitfield idx)
+                            (nth values idx)
+                            nil))
+                        (range (count values)))))))
+
 (defn make-livelog-out [data]
   (condp #(contains? %2 %1) data
     :wish (if (= (.toLowerCase (:wish data)) "nothing")
@@ -345,19 +364,12 @@
     
     :game_action (make-game-action-out data)
 
-    :achieve_diff (let [achieve-diff (Integer/parseInt (.substring (:achieve_diff data) 2) 16)]
+    :achieve_diff (let [achieve-diff (bitfield-to-int (:achieve_diff data))]
                     (if (not (or (= achieve-diff 0)
                                  (= achieve-diff 0x200)
                                  (= achieve-diff 0x400)))
-                      (first (filter #(not (= nil %1))
-                                     (map (fn [idx]
-                                            (if (bit-test achieve-diff idx)
-                                              (format "%s %s after %s turns."
-                                                      (:player data)
-                                                      (nth achievements idx)
-                                                      (:turns data))
-                                              nil))
-                                          (range (count achievements)))))))
+                      (parse-bitfield achievements achieve-diff)))
+
     (str "unhandled line: " data)))
 
 (defn handle-livelog-line [irc line]
