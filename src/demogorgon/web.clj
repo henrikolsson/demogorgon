@@ -23,7 +23,7 @@
     [:head
      [:title "un.nethack.nu"]
      [:style {:type "text/css"}
-      "body { font-family: verdana; font-size: 9px; }"
+      "body { font-family: verdana; font-size: 10px; }"
       "table { width: 100%; font-size: 11px; }"
       "th{ color: black; text-shadow:1px 1px 1px #bbb; }"
       "tr:nth-child(odd) { color: black; background-color:#eee; }"
@@ -32,7 +32,8 @@
     [:body
      [:h1 "un.nethack.nu"]
      [:div#menu
-      [:a {:href "/"} "last 25 games"] " | "
+      [:a {:href "/"} "startpage"] " | "
+      [:a {:href "/last-games"} "last 25 games"] " | "
       [:a {:href "/highscores"} "highscores"] " | "
       [:a {:href "/users"} "users"] " | "
       [:a {:href "/causes"} "causes"]]
@@ -41,6 +42,18 @@
 
 (defn page-not-found []
   "<h1>Page not found</h1>")
+
+;; (defn make-dump-link [row]
+;;   (let [base (str "/user/" (:name row) "/dumps/" (:name row ) "." (:endtime row))
+;;         file-base (str "/srv/un.nethack.nu" base)
+;;         extension (if (.exists (File. (str file-base ".txt.html")))
+;;                     ".txt.html"
+;;                     (if (.exists (File. (str file-base ".txt")))
+;;                       ".txt"
+;;                       nil))]
+;;     (if extension
+;;       [:a {:href (str base extension)} "dump #" (:id row)]
+;;       [:div "No dump file for game " (:id row)])))
 
 (defn make-dump-link [row]
   (let [base (str "/user/" (:name row) "/dumps/" (:name row ) "." (:endtime row))
@@ -51,17 +64,27 @@
                       ".txt"
                       nil))]
     (if extension
-      [:a {:href (str base extension)} "dump #" (:id row)]
-      [:div "No dump file for game " (:id row)])))
+      [:a {:href (str base extension)} (:id row)]
+      (:id row))))
+
+;;[:td [:a {:href (str "/game/" (:id row))} (:id row)]]
+
+(defn pretty-date [date]
+  (let [date (str date)]
+    (if (= (count date) 8)
+      (str (.substring date 0 4) "-"
+           (.substring date 4 6) "-"
+           (.substring date 6 8))
+      date)))
 
 
 (defn rs-row-to-tr [row]
   [:tr
-   [:td [:a {:href (str "/game/" (:id row))} (:id row)]]
+   [:td (make-dump-link row)]
    [:td [:a {:href (str "/user/" (:name row))} (:name row)]]
    [:td (:points row)]
    [:td (:turns row)]
-   [:td (:deathdate row)]
+   [:td (:deathdate (pretty-date row))]
    [:td [:a {:href (str "/cause/" (url-encode (:death_uniq row)))} (:death row)]]])
 
 (defn rs-to-table [rs]
@@ -103,16 +126,37 @@
       (layout
        (rs-to-table rs)))))
 
-(defn last-games
-  ([] (last-games 10))
-  ([limit]
-     (sql/with-connection db
-       (sql/with-query-results
-         rs
-         ["select * from xlogfile order by endtime desc limit ?" limit]
-         (layout
-          (rs-to-table rs))))))
+(defn last-games []
+  (sql/with-connection db
+    (sql/with-query-results
+      rs
+      ["select * from xlogfile order by endtime desc limit ?" 25]
+      (layout
+        (rs-to-table rs)))))
 
+(defn frontpage []
+  (sql/with-connection db
+    (sql/with-query-results
+      rs
+      ["select * from xlogfile order by endtime desc limit ?" 5]
+      (layout
+       [:div
+        [:h2 "about"]
+        [:p
+         "un.nethack.nu is a public server for " [:a {:href "http://sourceforge.net/apps/trac/unnethack/"} "UnNetHack"]
+         ". It is accessible by " [:a {:href "telnet://un.nethack.nu"} "telnet"] "."]
+        [:h2 "links"]
+        [:ul
+         [:li [:a {:href "/default-unnethackrc"} "default rc-file"]]
+         [:li [:a {:href "/logs"} "logfiles"]]]
+        [:h2 "last 5 deaths"]
+        (rs-to-table rs)]))))
+
+;; [:div
+;;         "links"
+;;         [:ul
+;;          [:li [:a {:href "/default-unnethackrc"} "default rcfile"]]
+;;          [:li [:a {:href "/logs"} "logfiles"]]]
 (defn user [name]
   (sql/with-connection db
     (sql/with-query-results
@@ -132,7 +176,7 @@
             [:br]
             (sql/with-query-results
               rs2
-              ["select * from xlogfile where name = ? order by endtime desc limit 50" name]
+              ["select * from xlogfile where name = ? order by endtime desc limit 100" name]
               (doall rs2)
               (rs-to-table rs2))]))))))
 
@@ -161,7 +205,8 @@
              rs)))))
 
 (defroutes main-routes
-  (GET "/" [] (last-games 25))
+  (GET "/last-games" [] (last-games))
+  (GET "/" [] (frontpage))
   (GET "/highscores" [] (highscores 25))
   (GET "/game/:id" [id] (game id))
   (GET "/user/:name" [name] (user name))
