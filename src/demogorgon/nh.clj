@@ -314,7 +314,9 @@
                                  "")
                                (:genocided_monster data))
     
-    :killed_uniq (str (:player data) " killed " (:killed_uniq data) " after " (:turns data) " turns.")
+    :killed_uniq (if (= (:killed_uniq data) "Medusa")
+                   nil
+                   (str (:player data) " killed " (:killed_uniq data) " after " (:turns data) " turns."))
     
     :killed_shopkeeper (str (:player data) " killed the shopkeeper "
                             (:killed_shopkeeper data) " after " (:turns data) " turns")
