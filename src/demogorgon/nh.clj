@@ -1,5 +1,5 @@
 (ns demogorgon.nh
-  (:import [java.io File FilenameFilter RandomAccessFile]
+  (:import [java.io File FilenameFilter RandomAccessFile ByteArrayOutputStream]
            [org.apache.log4j Logger]
            [java.nio.file FileSystems StandardWatchEventKind])
   (:require [clj-stacktrace.repl :as stacktrace]
@@ -240,7 +240,7 @@
                         (race (:race data))
                         (role (:role data))
                         (if (= (:death data) "ascended")
-                          " ascended to demigod-good."
+                          " ascended to demigod-hood."
                           (format ", left this world %s on level %s, %s."
                                   (zone (:deathdnum data))
                                   (:deathlev data)
@@ -366,6 +366,22 @@
         (if out
           (announce irc out))))))
 
+; read a line from a RandomAccessFile, in utf-8
+(defn read-line-ra [ra]
+  (let [buffer (ByteArrayOutputStream.)]
+    (loop [b (.read ra)]
+      (if (= b -1)
+        (if (= (.size buffer) 0)
+          nil
+          (String. (.toByteArray buffer) "UTF-8"))
+        (do
+          (if (= b 0x0a)
+            (String. (.toByteArray buffer) "UTF-8")
+            (do 
+              (.write buffer b)
+              (recur (.read ra)))))))))
+        
+
 (defn run-watcher [watcher]
   (with-local-vars [files {"livelog"   {:length (.length (File. (str (:un-dir config) "livelog")))
                                         :callback #'handle-livelog-line}
@@ -385,14 +401,14 @@
                (.debug logger (str "file modified: " fn))
                (let [ra (RandomAccessFile. (str (:un-dir config) fn) "r")]
                  (.seek ra (:length file))
-                 (loop [line (.readLine ra)]
+                 (loop [line (read-line-ra ra)]
                    (if line
                      (do 
                        ((:callback file) (:irc @watcher) line)
                        (var-set files (assoc (var-get files)
                                         fn
                                         (assoc (get (var-get files) fn) :length (.getFilePointer ra))))
-                       (recur (.readLine ra)))))
+                       (recur (read-line-ra ra)))))
                  (.close ra)))))
          (.reset key))))))
 
