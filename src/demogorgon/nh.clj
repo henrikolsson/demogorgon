@@ -395,7 +395,6 @@
      (let [key (.take (:watch-service @watcher))]
        (.debug logger "Got events")
        (doseq [event (.pollEvents key)]
-         (.debug logger (str "context " (.context event)))
          (let [fn (.toString (.context event))
                file (get (var-get files) fn)]
            (if file
