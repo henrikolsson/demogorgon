@@ -21,14 +21,23 @@
    (doctype :html5)
    [:html
     [:head
-     [:title "un.nethack.nu"]
+     [:title "un.nethack.nu - unnethack public server"]
      [:style {:type "text/css"}
       "body { font-family: verdana; font-size: 10px; }"
       "table { width: 100%; font-size: 11px; }"
       "th{ color: black; text-shadow:1px 1px 1px #bbb; }"
       "tr:nth-child(odd) { color: black; background-color:#eee; }"
       "tr:nth-child(even) { color: black; background-color:#fff; }"
-      "tr:hover { background-color: #ccc; }"]]
+      "tr:hover { background-color: #ccc; }"]
+     [:script {:type "text/javascript"}
+      "var _gaq = _gaq || [];"
+      "_gaq.push(['_setAccount', 'UA-22043040-1']);"
+      "_gaq.push(['_trackPageview']);"
+      "(function() {"
+      "var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;"
+      "ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';"
+      "var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);"
+      "})();"]]
     [:body
      [:h1 "un.nethack.nu"]
      [:div#menu
