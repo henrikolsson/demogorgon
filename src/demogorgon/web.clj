@@ -5,7 +5,8 @@
         [ring.adapter.jetty :only (run-jetty)]
         [ring.util.codec :only (url-encode url-decode)]
         [hiccup.core :only (html escape-html)]
-        [hiccup.page-helpers :only (doctype link-to)])
+        [hiccup.page-helpers :only (doctype link-to)]
+        [demogorgon.nh :only (parse-bitfield conducts)])
   (:require [compojure.route :as route]
             [clojure.contrib.sql :as sql]))
 
@@ -16,7 +17,7 @@
                     :subname "/tmp/nh.db"
                     :create true})
 
-(defn layout [content]
+(defn layout [& content]
   (html
    (doctype :html5)
    [:html
@@ -45,7 +46,8 @@
       [:a {:href "/last-games"} "last 25 games"] " | "
       [:a {:href "/highscores"} "highscores"] " | "
       [:a {:href "/users"} "users"] " | "
-      [:a {:href "/causes"} "causes"]]
+      [:a {:href "/causes"} "causes"] " | "
+      [:a {:href "/ascensions"} "ascensions"]]
      [:br]
      content]]))
 
@@ -93,8 +95,18 @@
    [:td [:a {:href (str "/user/" (:name row))} (:name row)]]
    [:td (:points row)]
    [:td (:turns row)]
-   [:td (:deathdate (pretty-date row))]
+   [:td (pretty-date (:deathdate row))]
    [:td [:a {:href (str "/cause/" (url-encode (:death_uniq row)))} (:death row)]]])
+
+(defn rs-row-to-tr-ascension [row]
+  [:tr
+   [:td (make-dump-link row)]
+   [:td [:a {:href (str "/user/" (:name row))} (:name row)]]
+   [:td (:points row)]
+   [:td (:turns row)]
+   [:td (pretty-date (:deathdate row))]
+   [:td (str (count (:conducts row)) ": "
+             (apply str (interpose ", " (:conducts row))))]])
 
 (defn rs-to-table [rs]
   [:table
@@ -106,6 +118,34 @@
     [:th "deathdate"]
     [:th "death"]]
    (map #'rs-row-to-tr rs)])
+
+(defn rs-to-table-ascension [rs]
+  [:table
+   [:tr
+    [:th "game"]
+    [:th "name"]
+    [:th "points"]
+    [:th "turns"]
+    [:th "deathdate"]
+    [:th "conducts"]]
+   (map #'rs-row-to-tr-ascension rs)])
+
+(defn ascensions []
+  (sql/with-connection db
+     (let [rows
+           (map #(assoc %1 :conducts (parse-bitfield conducts (:conduct %1)))
+                (sql/with-query-results rs
+                  ["select * from xlogfile where death = 'ascended' order by points desc"]
+                  (doall rs)))
+           points-table (rs-to-table-ascension (take 10 rows))
+           conducts-table (rs-to-table-ascension
+                           (take 10
+                                 (sort-by #(* (count (:conducts %1)) -1) rows)))]
+       (layout
+        [:h2 "by points"]
+        points-table
+        [:h2 "by conducts"]
+        conducts-table))))
 
 (defn game [id]
   (sql/with-connection db
@@ -153,7 +193,8 @@
         [:h2 "about"]
         [:p
          "un.nethack.nu is a public server for " [:a {:href "http://sourceforge.net/apps/trac/unnethack/"} "UnNetHack"]
-         ". It is accessible by " [:a {:href "telnet://un.nethack.nu"} "telnet"] "."]
+         ". There's a " [:a {:href "telnet://eu.un.nethack.nu"} "european server (telnet)"] " and a "
+         [:a {:href "telnet://us.un.nethack.nu"} "american server (telnet)"] "."]
         [:h2 "links"]
         [:ul
          [:li [:a {:href "/default-unnethackrc"} "default rc-file"]]
@@ -222,6 +263,7 @@
   (GET "/user/:name/" [name] (user name))
   (GET "/users" [] (users))
   (GET "/causes" [] (causes))
+  (GET "/ascensions" [] (ascensions))
   (GET "/cause/:cause-str" [cause-str] (cause cause-str))
   (GET "/highscores/:limit" [limit] (highscores limit))
   (route/not-found (page-not-found)))
