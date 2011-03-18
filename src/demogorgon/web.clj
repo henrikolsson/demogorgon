@@ -88,7 +88,6 @@
            (.substring date 6 8))
       date)))
 
-
 (defn rs-row-to-tr [row]
   [:tr
    [:td (make-dump-link row)]
@@ -193,7 +192,7 @@
         [:h2 "about"]
         [:p
          "un.nethack.nu is a public server for " [:a {:href "http://sourceforge.net/apps/trac/unnethack/"} "UnNetHack"]
-         ". There's a " [:a {:href "telnet://eu.un.nethack.nu"} "european server (telnet)"] " and a "
+         ". There's a " [:a {:href "telnet://eu.un.nethack.nu"} "european server (telnet)"] " and an "
          [:a {:href "telnet://us.un.nethack.nu"} "american server (telnet)"] "."]
         [:h2 "links"]
         [:ul
