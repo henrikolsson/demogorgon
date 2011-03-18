@@ -13,6 +13,7 @@
 
 (def logger (Logger/getLogger "demogorgon.nh"))
 (def scummers (ref {}))
+(def announce-region "eu")
 
 (def db {:classname "org.sqlite.JDBC"
                     :subprotocol "sqlite"
@@ -276,7 +277,8 @@
                                              (:name data)
                                              (:endtime data)))
             final-tweet (str tweet-prefix ", " url)]
-        (announce irc out)
+        (if (= (:region data) announce-region)
+          (announce irc out))
         (try 
          (twitter/tweet final-tweet)
          (catch Exception e
@@ -411,7 +413,8 @@
 
 (defn handle-livelog-line [irc file line]
   (let [data (assoc (parse-line line) :region (region-from-fn file))]
-    (if (not (is-scum (:player data)))
+    (if (and (not (is-scum (:player data)))
+             (= (:region data) announce-region))
       (let [out (make-livelog-out data)]
         (if out
           (announce irc out))))))
