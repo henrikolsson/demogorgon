@@ -76,6 +76,20 @@
       "obtained the sokoban prize"
       "defeated Medusa"])
 
+(def conducts
+     ["foodless"
+      "vegan"
+      "vegetarian"
+      "atheist"
+      "weaponless"
+      "pacifist"
+      "illiterate"
+      "polyless"
+      "polyselfless"
+      "wishless"
+      "artifact wishless"
+      "genocideless"])
+
 (defn zone [zonenum]
   (let [i (if (isa? (class zonenum) String)
             (Integer/parseInt zonenum)
@@ -118,8 +132,8 @@
                                 ""))) props)]
     (zipmap keys values)))
 
-(defn insert-xlogfile-line-db [line]
-  (let [data (parse-line line)]
+(defn insert-xlogfile-line-db [region line]
+  (let [data (assoc (parse-line line) :region region)]
     (let [record (assoc data :death_uniq (.replaceAll (:death data) ", while .*$", ""))]
       (sql/insert-records :xlogfile
                         record))))
@@ -222,11 +236,11 @@
     (.substring str 0 max)
     str))
 
-(defn handle-xlogfile-line [irc line]
+(defn handle-xlogfile-line [irc file line]
   (sql/with-connection db
     (sql/transaction
-     (insert-xlogfile-line-db line)))
-  (let [data (parse-line line)]
+     (insert-xlogfile-line-db (region-from-fn file) line)))
+  (let [data (assoc (parse-line line) :region (region-from-fn file))]
     (if (and (or (< (Integer/parseInt (:turns data)) 10)
                  (< (Integer/parseInt (:points data)) 10))
              (or (= (:death data) "quit")
@@ -268,25 +282,40 @@
          (catch Exception e
            (.error logger "tweet failed" e)))))))
 
+(condp = "euas"
+  "us" "american"
+  "eu" "european"
+  "us")
+
+(defn friendly-region [rgn]
+  (condp = rgn
+    "us" "american"
+    "eu" "european"
+    rgn))
+    
 (defn make-game-action-out [data]
   (condp = (:game_action data)
     "started" (if (:character data)
-                (format "%s enters the dungeon as a%s."
+                (format "%s enters the %s dungeon as a%s."
                         (:player data)
+                        (friendly-region (:region data))
                         (:character data))
-                (format "%s enters the dungeon as a%s %s %s."
+                (format "%s enters the %s dungeon as a%s %s %s."
                         (:player data)
+                        (friendly-region (:region data))
                         (:alignment data)
                         (race (:race data))
                         (role (:role data))))
     "resumed" (if (:character data)
-                (format "%s the%s resumes the adventure."
+                (format "%s the%s resumes the adventure in the %s realm."
                         (:player data)
-                        (:character data))
-                (format "%s the %s %s resumes the adventure."
+                        (:character data)
+                        (friendly-region (:region data)))
+                (format "%s the %s %s resumes the adventure in the %s realm."
                         (:player data)
                         (race (:race data))
-                        (role (:role data))))
+                        (role (:role data))
+                        (friendly-region (:region data))))
     
     "saved" (format "%s is taking a break from the hard life as an adventurer."
                     (:player data))
@@ -307,12 +336,12 @@
   (let [bitfield (if (integer? bitfield)
                    bitfield
                    (bitfield-to-int bitfield))]
-    (first (filter string?
-                   (map (fn [idx]
-                          (if (bit-test bitfield idx)
-                            (nth values idx)
-                            nil))
-                        (range (count values)))))))
+    (filter string?
+            (map (fn [idx]
+                   (if (bit-test bitfield idx)
+                     (nth values idx)
+                     nil))
+                 (range (count values))))))
 
 (defn make-livelog-out [data]
   (condp #(contains? %2 %1) data
@@ -368,12 +397,20 @@
                     (if (not (or (= achieve-diff 0)
                                  (= achieve-diff 0x200)
                                  (= achieve-diff 0x400)))
-                      (parse-bitfield achievements achieve-diff)))
+                      (format "%s %s after %s turns."
+                              (:player data)
+                              (first (parse-bitfield achievements achieve-diff))
+                              (:turns data))))
 
     (str "unhandled line: " data)))
 
-(defn handle-livelog-line [irc line]
-  (let [data (parse-line line)]
+(defn region-from-fn [fn]
+  (if (.endsWith fn "-us")
+    "us"
+    "eu"))
+
+(defn handle-livelog-line [irc file line]
+  (let [data (assoc (parse-line line) :region (region-from-fn file))]
     (if (not (is-scum (:player data)))
       (let [out (make-livelog-out data)]
         (if out
@@ -398,7 +435,11 @@
 (defn run-watcher [watcher]
   (with-local-vars [files {"livelog"   {:length (.length (File. (str (:un-dir config) "livelog")))
                                         :callback #'handle-livelog-line}
+                           "livelog-us"   {:length (.length (File. (str (:un-dir config) "livelog-us")))
+                                        :callback #'handle-livelog-line}                           
                            "xlogfile"  {:length (.length (File. (str (:un-dir config) "xlogfile")))
+                                        :callback #'handle-xlogfile-line}
+                           "xlogfile-us"  {:length (.length (File. (str (:un-dir config) "xlogfile-us")))
                                         :callback #'handle-xlogfile-line}}]
     (while
      (not (Thread/interrupted))
@@ -416,7 +457,7 @@
                  (loop [line (read-line-ra ra)]
                    (if line
                      (do 
-                       ((:callback file) (:irc @watcher) line)
+                       ((:callback file) (:irc @watcher) fn line)
                        (var-set files (assoc (var-get files)
                                         fn
                                         (assoc (get (var-get files) fn) :length (.getFilePointer ra))))
@@ -485,12 +526,19 @@
       [:endtime "TIMESTAMP"]
       [:gender0 "TEXT"]
       [:align0 "TEXT"]
-      [:flags "TEXT"])
+      [:flags "TEXT"]
+      [:region "TEXT"])
      (let [lines (read-lines (str (:un-dir config) "xlogfile"))]
        (doseq [line lines]
-         (insert-xlogfile-line-db line)))))
+         (insert-xlogfile-line-db "eu" line)))
+     (let [lines (read-lines (str (:un-dir config) "us/" "xlogfile-us"))]
+       (doseq [line lines]
+         (insert-xlogfile-line-db "us" line)))))
   (.info logger "database initialized"))
 
 (defn nh-start [watcher]
   (nh-init-db)
+  (.start (:thread @watcher)))
+
+(defn nh-run [watcher]
   (.start (:thread @watcher)))
