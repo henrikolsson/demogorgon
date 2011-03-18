@@ -91,6 +91,11 @@
       "artifact wishless"
       "genocideless"])
 
+(defn region-from-fn [fn]
+  (if (.endsWith fn "-us")
+    "us"
+    "eu"))
+
 (defn zone [zonenum]
   (let [i (if (isa? (class zonenum) String)
             (Integer/parseInt zonenum)
@@ -405,11 +410,6 @@
                               (:turns data))))
 
     (str "unhandled line: " data)))
-
-(defn region-from-fn [fn]
-  (if (.endsWith fn "-us")
-    "us"
-    "eu"))
 
 (defn handle-livelog-line [irc file line]
   (let [data (assoc (parse-line line) :region (region-from-fn file))]
