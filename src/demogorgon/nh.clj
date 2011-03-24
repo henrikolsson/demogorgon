@@ -259,7 +259,7 @@
                         (gender (:gender data))
                         (race (:race data))
                         (role (:role data))
-                        (if (= (:death data) "ascended")
+                        (if (.startsWith (:death data) "ascended")
                           " ascended to demigod-hood."
                           (format ", left this world %s on level %s, %s."
                                   (zone (:deathdnum data))

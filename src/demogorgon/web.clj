@@ -134,7 +134,7 @@
      (let [rows
            (map #(assoc %1 :conducts (parse-bitfield conducts (:conduct %1)))
                 (sql/with-query-results rs
-                  ["select * from xlogfile where death = 'ascended' order by points desc"]
+                  ["select * from xlogfile where death LIKE 'ascended%' order by points desc"]
                   (doall rs)))
            points-table (rs-to-table-ascension (take 10 rows))
            conducts-table (rs-to-table-ascension
@@ -210,7 +210,7 @@
   (sql/with-connection db
     (sql/with-query-results
       rs
-      ["select count(*) as games_played, (select count(*) from xlogfile where name = ? and death = 'ascended') as ascensions from xlogfile where name = ?" name name]
+      ["select count(*) as games_played, (select count(*) from xlogfile where name = ? and death LIKE 'ascended%') as ascensions from xlogfile where name = ?" name name]
       (let [row (first rs)]
         (if (not row)
           (page-not-found)
