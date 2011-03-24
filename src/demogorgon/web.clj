@@ -263,7 +263,7 @@
   (GET "/users" [] (users))
   (GET "/causes" [] (causes))
   (GET "/ascensions" [] (ascensions))
-  (GET "/cause/:cause-str" [cause-str] (cause cause-str))
+  (GET ["/cause/:cause-str", :cause-str #".+"] [cause-str] (cause cause-str))
   (GET "/highscores/:limit" [limit] (highscores limit))
   (route/not-found (page-not-found)))
 
