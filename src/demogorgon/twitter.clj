@@ -4,7 +4,7 @@
            [twitter4j.http AccessToken])
   (:require [clj-stacktrace.repl :as stacktrace])
   (:use	[demogorgon.config]
-        [clojure.contrib.duck-streams :only (reader)]))
+        [clojure.java.io :only (reader)]))
 
 (defn shorten-url [url]
     (let [url (new URL (str "http://is.gd/api.php?longurl=" url))

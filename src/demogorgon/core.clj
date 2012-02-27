@@ -1,7 +1,6 @@
 (ns demogorgon.core
   (:import [org.apache.log4j Logger]
            [java.util Random])
-  (:require [swank.swank :as swank])
   (:require [tachyon.core :as irc])
   (:require [tachyon.hooks :as irc-hooks])
   (:use [clj-stacktrace core repl]
@@ -15,7 +14,6 @@
 (def *connection* (irc/create (:irc config)))
 (def *nh* (nh-init *connection*))
 (def *web* (ref nil))
-;(nh-stop *nh*)
 
 (defn get-memory-info []
   (let [runtime (Runtime/getRuntime)
@@ -32,21 +30,16 @@
   (.gc (Runtime/getRuntime))
   (.debug logger (str "after  " (get-memory-info))))
 
-;(irc/disconnect *connection*)
 (defn rand-hook [irc object match]
   (let [words (.split (second match) " ")
         random (Random.)
         idx (.nextInt random (alength words))
         word (aget words idx)]
     word))
-;(println @*web*)
-;(print-debug)
-;(dosync 
-; (assoc @*connection* :server-idx 0))
+
 (defn -main[& args]
   (try 
    (let [logger (Logger/getLogger "main")]
-     (swank/start-repl 4006)
      (nh-start *nh*)
      
      (irc-hooks/add-message-hook *connection* #"^\.rng (.+)" #'rand-hook)

@@ -8,7 +8,7 @@
         [hiccup.page-helpers :only (doctype link-to)]
         [demogorgon.nh :only (parse-bitfield conducts)])
   (:require [compojure.route :as route]
-            [clojure.contrib.sql :as sql]))
+            [clojure.java.jdbc :as sql]))
 
 (def logger (Logger/getLogger "demogorgon.web"))
 
@@ -170,7 +170,7 @@
   (sql/with-connection db
     (sql/with-query-results
       rs
-      ["select * from xlogfile where death_uniq = ? order by points desc" cause-str]
+      ["select * from xlogfile where death_uniq = ? order by points desc" (url-decode cause-str)]
       (layout
        (rs-to-table rs)))))
 

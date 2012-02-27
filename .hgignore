@@ -2,3 +2,5 @@ demogorgon.log.*
 classes/
 lib/
 .*\.jar$
+\.lein-deps-sum
+native/

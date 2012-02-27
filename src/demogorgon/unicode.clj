@@ -1,5 +1,6 @@
 (ns demogorgon.unicode
-  (:use	[clojure.contrib.duck-streams :only (reader read-lines)]))
+  (:use	[demogorgon.util :only (read-lines)])
+  (:use	[clojure.java.io :only (reader)]))
 
 (defn get-resource [name]
   (.getResourceAsStream (.getContextClassLoader (Thread/currentThread)) name))

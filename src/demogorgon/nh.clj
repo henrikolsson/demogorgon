@@ -5,8 +5,9 @@
   (:require [clj-stacktrace.repl :as stacktrace]
             [tachyon.core :as irc]
             [demogorgon.twitter :as twitter]
-            [clojure.contrib.sql :as sql])
-  (:use	[clojure.contrib.duck-streams :only (reader read-lines)]
+            [clojure.java.jdbc :as sql])
+  (:use	[clojure.java.io :only (reader)]
+        [demogorgon.util :only (read-lines)]
         [demogorgon.config]))
 
 (defstruct watcher-instance :watch-service :events :thread :irc)
