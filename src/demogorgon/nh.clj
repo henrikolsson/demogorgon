@@ -1,7 +1,7 @@
 (ns demogorgon.nh
   (:import [java.io File FilenameFilter RandomAccessFile ByteArrayOutputStream]
            [org.apache.log4j Logger]
-           [java.nio.file FileSystems StandardWatchEventKind])
+           [java.nio.file FileSystems StandardWatchEventKinds])
   (:require [clj-stacktrace.repl :as stacktrace]
             [tachyon.core :as irc]
             [demogorgon.twitter :as twitter]
@@ -480,7 +480,7 @@
                                                 (run-watcher watcher)))))))
     (.register (.toPath (File. (:un-dir config)))
                (:watch-service @watcher)
-               (into-array [StandardWatchEventKind/ENTRY_MODIFY]))
+               (into-array [StandardWatchEventKinds/ENTRY_MODIFY]))
     (.setUncaughtExceptionHandler
      (:thread @watcher)
      (proxy [Thread$UncaughtExceptionHandler] []
