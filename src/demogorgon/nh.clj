@@ -319,41 +319,25 @@
          (catch Exception e
            (.error logger "tweet failed" e)))))))
 
-(condp = "euas"
-  "us" "american"
-  "eu" "european"
-  "us")
-
-(defn friendly-region [rgn]
-  "terrifying")
-  ;; (condp = rgn
-  ;;   "us" "american"
-  ;;   "eu" "european"
-  ;;   rgn))
-    
 (defn make-game-action-out [data]
   (condp = (:game_action data)
     "started" (if (:character data)
-                (format "%s enters the %s dungeon as a%s."
+                (format "%s enters the dungeon as a%s."
                         (:player data)
-                        (friendly-region (:region data))
                         (:character data))
-                (format "%s enters the %s dungeon as a%s %s %s."
+                (format "%s enters the dungeon as a%s %s %s."
                         (:player data)
-                        (friendly-region (:region data))
                         (:alignment data)
                         (race (:race data))
                         (role (:role data))))
     "resumed" (if (:character data)
-                (format "%s the%s resumes the adventure in the %s realm."
+                (format "%s the%s resumes the adventure."
                         (:player data)
                         (:character data)
-                        (friendly-region (:region data)))
-                (format "%s the %s %s resumes the adventure in the %s realm."
+                (format "%s the %s %s resumes the adventure."
                         (:player data)
                         (race (:race data))
-                        (role (:role data))
-                        (friendly-region (:region data))))
+                        (role (:role data)))))
     
     "saved" (format "%s is taking a break from the hard life as an adventurer."
                     (:player data))
