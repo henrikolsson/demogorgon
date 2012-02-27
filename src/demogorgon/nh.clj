@@ -296,10 +296,10 @@
 
 (defn friendly-region [rgn]
   "terrifying")
-  (condp = rgn
-    "us" "american"
-    "eu" "european"
-    rgn))
+  ;; (condp = rgn
+  ;;   "us" "american"
+  ;;   "eu" "european"
+  ;;   rgn))
     
 (defn make-game-action-out [data]
   (condp = (:game_action data)
