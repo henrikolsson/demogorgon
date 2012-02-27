@@ -7,7 +7,7 @@
         [demogorgon.config]
         [demogorgon.unicode :only (unicode-hook)]
         [demogorgon.web :only (start-web stop-web)]
-        [demogorgon.nh :only (online-players-hook last-dump-hook nh-start nh-init nh-stop)])
+        [demogorgon.nh :only (online-players-hook last-dump-hook whereis-hook nh-start nh-init nh-stop)])
   (:gen-class))
 
 (def logger (Logger/getLogger "demogorgon.core"))
@@ -53,6 +53,7 @@
      (irc-hooks/add-message-hook *connection* #"^\.last ?(.*)?" #'last-dump-hook)
      (irc-hooks/add-message-hook *connection* #"^\.lastdump ?(.*)?" #'last-dump-hook)
      (irc-hooks/add-message-hook *connection* #"^\.lasturl ?(.*)?" #'last-dump-hook)
+     (irc-hooks/add-message-hook *connection* #"^\.whereis ?(.*)?" #'whereis-hook)
      (irc/connect *connection*)
      (dosync
       (ref-set *web* (start-web))))

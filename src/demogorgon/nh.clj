@@ -234,6 +234,35 @@
                      (format-time (:idle data))))
            players))))
 
+(defn format-turns [turns]
+  (if (= (Integer/parseInt turns) 1)
+    "1 turn"
+    (str turns " turns")))
+
+(defn whereis-hook [irc object match]
+  (let [player (sanitize-nick (if (= (second match) "")
+                              (:nick (:prefix object))
+                              (second match)))
+        filename (str "/opt/unnethack/var/unnethack/" player ".whereis")]
+    (if (not (.exists (File. filename)))
+      (str player " doesn't seem to have played here yet.")
+      (let [whereis (File. filename)]
+        (with-open [rdr (reader whereis)]
+          (let [data (parse-line (first (line-seq rdr)))
+                out (format "%s %s on level %s in %s after %s."
+                 (:player data)
+                 (cond (= (:ascended data) "1") "died"
+                       (= (:ascended data) "2") "ascended"
+                       (= (:playing data)  "1") "is"
+                       (= (:playing data)  "0") "saved"
+                       :else "did something")
+                 (:depth data)
+                 (:dname data)
+                 (format-turns (:turns data))
+                )]
+            out))))))
+
+
 (defn announce [irc msg]
   (doseq [channel (:channels (:irc config))]
     (irc/send-message irc channel msg)))
