@@ -295,6 +295,7 @@
   "us")
 
 (defn friendly-region [rgn]
+  "terrifying")
   (condp = rgn
     "us" "american"
     "eu" "european"
@@ -534,7 +535,7 @@
      (let [lines (read-lines (str (:un-dir config) "xlogfile"))]
        (doseq [line lines]
          (insert-xlogfile-line-db "eu" line)))
-     (let [lines (read-lines (str (:un-dir config) "us/" "xlogfile-us"))]
+     (let [lines (read-lines (str (:un-dir config) "xlogfile-us"))]
        (doseq [line lines]
          (insert-xlogfile-line-db "us" line)))))
   (.info logger "database initialized"))

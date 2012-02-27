@@ -193,7 +193,8 @@
         [:p
          "un.nethack.nu is a public server for " [:a {:href "http://sourceforge.net/apps/trac/unnethack/"} "UnNetHack"]
          ". There's a " [:a {:href "telnet://eu.un.nethack.nu"} "european server (telnet)"] " and an "
-         [:a {:href "telnet://us.un.nethack.nu"} "american server (telnet)"] "."]
+         [:span {:style "text-decoration: line-through;"} "american server"] "."]
+          
         [:h2 "links"]
         [:ul
          [:li [:a {:href "/default-unnethackrc"} "default rc-file"]]
