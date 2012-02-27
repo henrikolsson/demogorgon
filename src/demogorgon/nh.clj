@@ -243,7 +243,7 @@
   (let [player (sanitize-nick (if (= (second match) "")
                               (:nick (:prefix object))
                               (second match)))
-        filename (str "/opt/unnethack/var/unnethack/" player ".whereis")]
+        filename (str "/opt/nethack.nu/var/unnethack/" player ".whereis")]
     (if (not (.exists (File. filename)))
       (str player " doesn't seem to have played here yet.")
       (let [whereis (File. filename)]
