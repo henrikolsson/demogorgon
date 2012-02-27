@@ -531,7 +531,10 @@
       [:gender0 "TEXT"]
       [:align0 "TEXT"]
       [:flags "TEXT"]
-      [:region "TEXT"])
+      [:region "TEXT"]
+      [:event "TEXT"]
+      [:carried "TEXT"]
+      [:elbereths "INT"])
      (let [lines (read-lines (str (:un-dir config) "xlogfile"))]
        (doseq [line lines]
          (insert-xlogfile-line-db "eu" line)))
