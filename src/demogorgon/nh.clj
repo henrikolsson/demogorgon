@@ -51,18 +51,12 @@
       "neu" "neutral"
       "una" "evil"})
 
+; Hash of special named dungeon branches
 (def zonemap
-     ["in The Dungeons of Doom"
-      "in Gehennom"
-      "in The Gnomish Mines"
-      "in The Quest"
-      "in Sokoban"
-      "in Town"
-      "in Fort Ludios"
-      "in the Black Market"
-      "in Vlad's Tower"
-      "on The Elemental Planes"
-      "in the Advent Calendar"])
+     ; only map those dungeon branches that need special treatment
+     {"One-eyed Sam's Market" "in the Black Market"
+      "The Elemental Planes" "on the Elemental Planes"
+      "Advent Calendar" "in the Advent Calendar"})
 
 (def achievements
      ["obtained the Bell of Opening"
@@ -97,14 +91,11 @@
     "us"
     "eu"))
 
-(defn zone [zonenum]
-  (let [i (if (isa? (class zonenum) String)
-            (Integer/parseInt zonenum)
-            zonenum)]
-    (if (>= i (count zonemap))
-      "in an unknown zone"
-      (nth zonemap i))))
-      
+; return zonename with correct location preposition
+(defn zone [zonename]
+  (get zonemap zonename
+    (str "in " zonename)))
+
 (defn role [role]
   (get roles (.toLowerCase role) role))
 
@@ -292,7 +283,7 @@
                         (if (.startsWith (:death data) "ascended")
                           (str " " (:death data) " to demigod-hood.")
                           (format ", left this world %s on level %s, %s."
-                                  (zone (:deathdnum data))
+                                  (zone (:deathdname data))
                                   (:deathlev data)
                                   (:death data)))
                         (possessive-gender (:gender data))
