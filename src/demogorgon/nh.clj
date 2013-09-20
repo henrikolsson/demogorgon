@@ -539,7 +539,12 @@
       [:region "TEXT"]
       [:event "TEXT"]
       [:carried "TEXT"]
-      [:elbereths "INT"])
+      [:elbereths "INT"]
+      [:xplevel "INT"]
+      [:exp "INT"]
+      [:mode "TEXT"]
+      [:gold "INT"])
+     (.info logger "table created")
      (let [lines (read-lines (str (:un-dir config) "xlogfile"))]
        (doseq [line lines]
          (insert-xlogfile-line-db "eu" line)))
