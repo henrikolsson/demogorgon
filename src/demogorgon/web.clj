@@ -4,8 +4,10 @@
   (:use [compojure.core :only (defroutes GET)]
         [ring.adapter.jetty :only (run-jetty)]
         [ring.util.codec :only (url-encode url-decode)]
-        [hiccup.core :only (html escape-html)]
-        [hiccup.page-helpers :only (doctype link-to)]
+        [hiccup.core :only (html)]
+        [hiccup.page :only (html5)]
+        [hiccup.util :only (escape-html)]
+        [hiccup.element :only (link-to)]
         [demogorgon.nh :only (parse-bitfield conducts)])
   (:require [compojure.route :as route]
             [clojure.java.jdbc :as sql]))
@@ -13,43 +15,43 @@
 (def logger (Logger/getLogger "demogorgon.web"))
 
 (def db {:classname "org.sqlite.JDBC"
-                    :subprotocol "sqlite"
-                    :subname "/tmp/nh.db"
-                    :create true})
+         :subprotocol "sqlite"
+         :subname "/tmp/nh.db"
+         :create true})
 
 (defn layout [& content]
   (html
-   (doctype :html5)
-   [:html
-    [:head
-     [:title "un.nethack.nu - unnethack public server"]
-     [:style {:type "text/css"}
-      "body { font-family: verdana; font-size: 10px; }"
-      "table { width: 100%; font-size: 11px; }"
-      "th{ color: black; text-shadow:1px 1px 1px #bbb; }"
-      "tr:nth-child(odd) { color: black; background-color:#eee; }"
-      "tr:nth-child(even) { color: black; background-color:#fff; }"
-      "tr:hover { background-color: #ccc; }"]
-     [:script {:type "text/javascript"}
-      "var _gaq = _gaq || [];"
-      "_gaq.push(['_setAccount', 'UA-22043040-1']);"
-      "_gaq.push(['_trackPageview']);"
-      "(function() {"
-      "var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;"
-      "ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';"
-      "var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);"
-      "})();"]]
-    [:body
-     [:h1 "un.nethack.nu"]
-     [:div#menu
-      [:a {:href "/"} "startpage"] " | "
-      [:a {:href "/last-games"} "last 25 games"] " | "
-      [:a {:href "/highscores"} "highscores"] " | "
-      [:a {:href "/users"} "users"] " | "
-      [:a {:href "/causes"} "causes"] " | "
-      [:a {:href "/ascensions"} "ascensions"]]
-     [:br]
-     content]]))
+   (html5
+    [:html
+     [:head
+      [:title "un.nethack.nu - unnethack public server"]
+      [:style {:type "text/css"}
+       "body { font-family: verdana; font-size: 10px; }"
+       "table { width: 100%; font-size: 11px; }"
+       "th{ color: black; text-shadow:1px 1px 1px #bbb; }"
+       "tr:nth-child(odd) { color: black; background-color:#eee; }"
+       "tr:nth-child(even) { color: black; background-color:#fff; }"
+       "tr:hover { background-color: #ccc; }"]
+      [:script {:type "text/javascript"}
+       "var _gaq = _gaq || [];"
+       "_gaq.push(['_setAccount', 'UA-22043040-1']);"
+       "_gaq.push(['_trackPageview']);"
+       "(function() {"
+       "var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;"
+       "ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';"
+       "var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);"
+       "})();"]]
+     [:body
+      [:h1 "un.nethack.nu"]
+      [:div#menu
+       [:a {:href "/"} "startpage"] " | "
+       [:a {:href "/last-games"} "last 25 games"] " | "
+       [:a {:href "/highscores"} "highscores"] " | "
+       [:a {:href "/users"} "users"] " | "
+       [:a {:href "/causes"} "causes"] " | "
+       [:a {:href "/ascensions"} "ascensions"]]
+      [:br]
+      content]])))
 
 (defn page-not-found []
   "<h1>Page not found</h1>")
@@ -131,20 +133,20 @@
 
 (defn ascensions []
   (sql/with-connection db
-     (let [rows
-           (map #(assoc %1 :conducts (parse-bitfield conducts (:conduct %1)))
-                (sql/with-query-results rs
-                  ["select * from xlogfile where death LIKE 'ascended%' order by points desc"]
-                  (doall rs)))
-           points-table (rs-to-table-ascension (take 10 rows))
-           conducts-table (rs-to-table-ascension
-                           (take 10
-                                 (sort-by #(* (count (:conducts %1)) -1) rows)))]
-       (layout
-        [:h2 "by points"]
-        points-table
-        [:h2 "by conducts"]
-        conducts-table))))
+    (let [rows
+          (map #(assoc %1 :conducts (parse-bitfield conducts (:conduct %1)))
+               (sql/with-query-results rs
+                 ["select * from xlogfile where death LIKE 'ascended%' order by points desc"]
+                 (doall rs)))
+          points-table (rs-to-table-ascension (take 10 rows))
+          conducts-table (rs-to-table-ascension
+                          (take 10
+                                (sort-by #(* (count (:conducts %1)) -1) rows)))]
+      (layout
+       [:h2 "by points"]
+       points-table
+       [:h2 "by conducts"]
+       conducts-table))))
 
 (defn game [id]
   (sql/with-connection db
@@ -180,7 +182,7 @@
       rs
       ["select * from xlogfile order by endtime desc limit ?" 25]
       (layout
-        (rs-to-table rs)))))
+       (rs-to-table rs)))))
 
 (defn frontpage []
   (sql/with-connection db
@@ -194,7 +196,7 @@
          "un.nethack.nu is a public server for " [:a {:href "http://sourceforge.net/apps/trac/unnethack/"} "UnNetHack"]
          ". There's a " [:a {:href "telnet://eu.un.nethack.nu"} "european server (telnet)"] " and an "
          [:span {:style "text-decoration: line-through;"} "american server"] "."]
-          
+        
         [:h2 "links"]
         [:ul
          [:li [:a {:href "/default-unnethackrc"} "default rc-file"]]
@@ -252,7 +254,7 @@
               [:div 
                (:count row) " " [:a {:href (str "/cause/" (url-encode (:death row)))} (:death row)]
                [:br]])
-             rs)))))
+            rs)))))
 
 (defroutes main-routes
   (GET "/last-games" [] (last-games))

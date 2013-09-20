@@ -1,7 +1,7 @@
 (ns demogorgon.twitter
   (:import [java.net URL]
            [twitter4j TwitterFactory]
-           [twitter4j.http AccessToken])
+           [twitter4j.auth AccessToken])
   (:require [clj-stacktrace.repl :as stacktrace])
   (:use	[demogorgon.config]
         [clojure.java.io :only (reader)]))
