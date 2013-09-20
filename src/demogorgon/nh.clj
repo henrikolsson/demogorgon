@@ -196,11 +196,11 @@
    (alter scummers assoc player (+ (System/currentTimeMillis) 30000))))
 
 (defn is-scum [player]
-  (dosync 
+  (dosync
    (if (contains? @scummers player)
      (if (< (get @scummers player) (System/currentTimeMillis))
        (do
-         (.info logger "removing scum " player)
+         (.info logger (str "removing scum " player))
          (alter scummers dissoc player)
          false)
        true))))
@@ -272,8 +272,8 @@
                  (< (Integer/parseInt (:points data)) 10))
              (or (= (:death data) "quit")
                  (= (:death data) "escaped")))
-      (add-scum (:player data)))
-    (if (not (is-scum (:player data)))
+      (add-scum (:name data)))
+    (if (not (is-scum (:name data)))
       (let [out (format "%s, the %s %s %s %s%s %s score was %s."
                         (:name data)
                         (alignment (:align data))
