@@ -4,7 +4,7 @@
                  [org.apache.mina/mina-core  "2.0.0-RC1"]
                  [ring "1.0.2"]
                  [compojure "1.0.1"]
-                 [org.clojure/java.jdbc "0.1.1"]
+                 [org.clojure/java.jdbc "0.1.4"]
                  [org.slf4j/slf4j-log4j12 "1.6.0"]
                  [org.slf4j/slf4j-api "1.6.0"]
                  [clj-stacktrace "0.2.0"]
