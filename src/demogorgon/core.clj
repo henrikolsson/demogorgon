@@ -11,9 +11,6 @@
   (:gen-class))
 
 (def logger (Logger/getLogger "demogorgon.core"))
-(def *connection* (irc/create (:irc config)))
-(def *nh* (nh-init *connection*))
-(def *web* (ref nil))
 
 (defn get-memory-info []
   (let [runtime (Runtime/getRuntime)
@@ -24,8 +21,6 @@
     (str "used " used " free " free " total " total " max " max)))
 
 (defn print-debug []
-  (let [thread (:thread @*nh*)]
-    (.debug logger (str (.getName thread) ": " (.getState thread))))
   (.debug logger (str "before " (get-memory-info)))
   (.gc (Runtime/getRuntime))
   (.debug logger (str "after  " (get-memory-info))))
@@ -37,25 +32,34 @@
         word (aget words idx)]
     word))
 
+(defn create []
+  (let [irc (irc/create (:irc config))]
+    {:connection irc
+    :nh (nh-init irc)
+    :web (ref nil)}))
+
+(defn start [bot]
+  (let [logger (Logger/getLogger "main")]
+    (nh-start (:nh bot))
+    
+    (irc-hooks/add-message-hook (:connection bot) #"^\.rng (.+)" #'rand-hook)
+    (irc-hooks/add-message-hook (:connection bot) #"^\.rnd (.+)" #'rand-hook)
+    (irc-hooks/add-message-hook (:connection bot) #"^\.random (.+)" #'rand-hook)
+    (irc-hooks/add-message-hook (:connection bot) ".debug" (fn [& rest] (get-memory-info)))
+    (irc-hooks/add-message-hook (:connection bot) ".gc" (fn [& rest] (.gc (Runtime/getRuntime))))
+    (irc-hooks/add-message-hook (:connection bot) #"^\.u ?(.*)?" #'unicode-hook)
+    (irc-hooks/add-message-hook (:connection bot) ".cur" #'online-players-hook)
+    (irc-hooks/add-message-hook (:connection bot) ".online" #'online-players-hook)
+    (irc-hooks/add-message-hook (:connection bot) #"^\.last ?(.*)?" #'last-dump-hook)
+    (irc-hooks/add-message-hook (:connection bot) #"^\.lastdump ?(.*)?" #'last-dump-hook)
+    (irc-hooks/add-message-hook (:connection bot) #"^\.lasturl ?(.*)?" #'last-dump-hook)
+    (irc-hooks/add-message-hook (:connection bot) #"^\.whereis ?(.*)?" #'whereis-hook)
+    (irc/connect (:connection bot))
+    (dosync
+     (ref-set (:web bot) (start-web)))))
+
 (defn -main[& args]
-  (try 
-   (let [logger (Logger/getLogger "main")]
-     (nh-start *nh*)
-     
-     (irc-hooks/add-message-hook *connection* #"^\.rng (.+)" #'rand-hook)
-     (irc-hooks/add-message-hook *connection* #"^\.rnd (.+)" #'rand-hook)
-     (irc-hooks/add-message-hook *connection* #"^\.random (.+)" #'rand-hook)
-     (irc-hooks/add-message-hook *connection* ".debug" (fn [& rest] (get-memory-info)))
-     (irc-hooks/add-message-hook *connection* ".gc" (fn [& rest] (.gc (Runtime/getRuntime))))
-     (irc-hooks/add-message-hook *connection* #"^\.u ?(.*)?" #'unicode-hook)
-     (irc-hooks/add-message-hook *connection* ".cur" #'online-players-hook)
-     (irc-hooks/add-message-hook *connection* ".online" #'online-players-hook)
-     (irc-hooks/add-message-hook *connection* #"^\.last ?(.*)?" #'last-dump-hook)
-     (irc-hooks/add-message-hook *connection* #"^\.lastdump ?(.*)?" #'last-dump-hook)
-     (irc-hooks/add-message-hook *connection* #"^\.lasturl ?(.*)?" #'last-dump-hook)
-     (irc-hooks/add-message-hook *connection* #"^\.whereis ?(.*)?" #'whereis-hook)
-     (irc/connect *connection*)
-     (dosync
-      (ref-set *web* (start-web))))
-   (catch Exception e
-     (pst e))))
+  (try
+    (start (create))
+    (catch Exception e
+      (pst e))))
