@@ -50,7 +50,8 @@
       [:div.navbar-header
        [:button.navbar-toggle {"type" "button"
                                "data-toggle" "collapse"
-                               "data-target" ".nav-collapse"}
+                               "data-target" ".navbar-collapse"}
+        [:span.sr-only "Toggle navigation"]
         [:span.icon-bar ""]
         [:span.icon-bar ""]
         [:span.icon-bar ""]]
@@ -275,7 +276,6 @@
   (route/resources "/")
   (route/not-found (page-not-found)))
 
-(+ 1 1)
 (defn start-web []
   (run-jetty #'main-routes {:port 8080 :join? false}))
 
