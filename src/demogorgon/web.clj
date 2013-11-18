@@ -5,7 +5,7 @@
         [ring.adapter.jetty :only (run-jetty)]
         [ring.util.codec :only (url-encode url-decode)]
         [hiccup.core :only (html)]
-        [hiccup.page :only (html5)]
+        [hiccup.page :only (html5 include-js include-css)]
         [hiccup.util :only (escape-html)]
         [hiccup.element :only (link-to)]
         [demogorgon.nh :only (parse-bitfield conducts)])
@@ -20,53 +20,80 @@
          :create true})
 
 (defn layout [& content]
-  (html
-   (html5
-    [:html
-     [:head
-      [:title "un.nethack.nu - unnethack public server"]
-      [:style {:type "text/css"}
-       "body { font-family: verdana; font-size: 10px; }"
-       "table { width: 100%; font-size: 11px; }"
-       "th{ color: black; text-shadow:1px 1px 1px #bbb; }"
-       "tr:nth-child(odd) { color: black; background-color:#eee; }"
-       "tr:nth-child(even) { color: black; background-color:#fff; }"
-       "tr:hover { background-color: #ccc; }"]
-      [:script {:type "text/javascript"}
-       "var _gaq = _gaq || [];"
-       "_gaq.push(['_setAccount', 'UA-22043040-1']);"
-       "_gaq.push(['_trackPageview']);"
-       "(function() {"
-       "var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;"
-       "ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';"
-       "var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);"
-       "})();"]]
-     [:body
-      [:h1 "un.nethack.nu"]
-      [:div#menu
-       [:a {:href "/"} "startpage"] " | "
-       [:a {:href "/last-games"} "last 25 games"] " | "
-       [:a {:href "/highscores"} "highscores"] " | "
-       [:a {:href "/users"} "users"] " | "
-       [:a {:href "/causes"} "causes"] " | "
-       [:a {:href "/ascensions"} "ascensions"]]
-      [:br]
-      content]])))
+  (html5
+   [:head
+    [:title "un.nethack.nu - unnethack public server"]
+    (include-css "/css/bootstrap.min.css")
+    (include-css "/css/darkstrap3.css")
+    (include-css "/css/jquery.dataTables.css")
+    (include-css "/css/jquery.dataTables_themeroller.css")
+    (include-css "/css/demo_table_jui.css")
+    (include-css "/css/ui-darkness/jquery-ui-1.10.3.custom.css")
+    (include-css "/css/site.css")
+    [:style {:type "text/css"}
+     "body { padding-top: 50px; }"
+     "#main { padding-top: 15px; }"]
+    [:script {:type "text/javascript"}
+     "var _gaq = _gaq || [];"
+     "_gaq.push(['_setAccount', 'UA-22043040-1']);"
+     "_gaq.push(['_trackPageview']);"
+     "(function() {"
+     "var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;"
+     "ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';"
+     "var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);"
+     "})();"]
+    [:meta {:name "viewport"
+            :content "width=device-width, initial-scale=1.0"}]]
+   [:body
+    [:nav.navbar.navbar-default.navbar-fixed-top {:role "navigation"}
+     [:div.container
+      [:div.navbar-header
+       [:button.navbar-toggle {"type" "button"
+                               "data-toggle" "collapse"
+                               "data-target" ".nav-collapse"}
+        [:span.icon-bar ""]
+        [:span.icon-bar ""]
+        [:span.icon-bar ""]]
+       [:a.navbar-brand {"href" "/"} "un.nethack.nu"]]
+      [:div.navbar-collapse.collapse
+       [:ul.nav.navbar-nav
+        [:li [:a#nav-dashboard {"href" "/last-games"} "last games"]]
+        [:li [:a#nav-dashboard {"href" "/highscores"} "highscores"]]
+        [:li [:a#nav-dashboard {"href" "/users"} "users"]]
+        [:li [:a#nav-dashboard {"href" "/causes"} "causes"]]
+        [:li [:a#nav-dashboard {"href" "/ascensions"} "ascensions"]]]]]]
+    [:div#main.container
+     content]
+    (include-js "/js/jquery-1.9.1.js")
+    (include-js "/js/jquery-ui-1.10.3.custom.js")
+    (include-js "/js/jquery.dataTables.min.js")
+    (include-js "/js/bootstrap.min.js")
+    (include-js "/js/site.js")]))
+
+
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Project name</a>
+        </div>
+        <div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#">Home</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
 
 (defn page-not-found []
   "<h1>Page not found</h1>")
-
-;; (defn make-dump-link [row]
-;;   (let [base (str "/user/" (:name row) "/dumps/" (:name row ) "." (:endtime row))
-;;         file-base (str "/srv/un.nethack.nu" base)
-;;         extension (if (.exists (File. (str file-base ".txt.html")))
-;;                     ".txt.html"
-;;                     (if (.exists (File. (str file-base ".txt")))
-;;                       ".txt"
-;;                       nil))]
-;;     (if extension
-;;       [:a {:href (str base extension)} "dump #" (:id row)]
-;;       [:div "No dump file for game " (:id row)])))
 
 (defn make-dump-link [row]
   (let [base (str "/user/" (:name row) "/dumps/" (:name row ) "." (:endtime row))
@@ -111,25 +138,29 @@
 
 (defn rs-to-table [rs]
   [:table
-   [:tr
-    [:th "game"]
-    [:th "name"]
-    [:th "points"]
-    [:th "turns"]
-    [:th "deathdate"]
-    [:th "death"]]
-   (map #'rs-row-to-tr rs)])
+   [:thead
+    [:tr
+     [:th "game"]
+     [:th "name"]
+     [:th "points"]
+     [:th "turns"]
+     [:th "deathdate"]
+     [:th "death"]]]
+   [:tbody
+    (map #'rs-row-to-tr rs)]])
 
 (defn rs-to-table-ascension [rs]
   [:table
-   [:tr
-    [:th "game"]
-    [:th "name"]
-    [:th "points"]
-    [:th "turns"]
-    [:th "deathdate"]
-    [:th "conducts"]]
-   (map #'rs-row-to-tr-ascension rs)])
+   [:thead
+    [:tr
+     [:th "game"]
+     [:th "name"]
+     [:th "points"]
+     [:th "turns"]
+     [:th "deathdate"]
+     [:th "conducts"]]]
+   [:tbody
+    (map #'rs-row-to-tr-ascension rs)]])
 
 (defn ascensions []
   (sql/with-connection db
@@ -204,11 +235,6 @@
         [:h2 "last 5 deaths"]
         (rs-to-table rs)]))))
 
-;; [:div
-;;         "links"
-;;         [:ul
-;;          [:li [:a {:href "/default-unnethackrc"} "default rcfile"]]
-;;          [:li [:a {:href "/logs"} "logfiles"]]]
 (defn user [name]
   (sql/with-connection db
     (sql/with-query-results
@@ -268,10 +294,12 @@
   (GET "/ascensions" [] (ascensions))
   (GET ["/cause/:cause-str", :cause-str #".+"] [cause-str] (cause cause-str))
   (GET "/highscores/:limit" [limit] (highscores limit))
+  (route/resources "/")
   (route/not-found (page-not-found)))
 
+(+ 1 1)
 (defn start-web []
-  (run-jetty #'main-routes {:port 8080 :join false}))
+  (run-jetty #'main-routes {:port 8080 :join? false}))
 
 (defn stop-web [j]
   (.stop j))

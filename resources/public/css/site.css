@@ -1,0 +1,17 @@
+table.dataTable tbody td {
+    text-align: center;
+    background: #555;
+}
+         
+table.dataTable tbody tr.odd td {
+    background: #333;
+}
+
+table.dataTable th {
+    text-align: center;
+}
+
+
+div.dataTables_filter input[type="text"] {
+    height: auto;
+}
