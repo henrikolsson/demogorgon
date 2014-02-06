@@ -3,8 +3,8 @@
            [java.util Random])
   (:require [tachyon.core :as irc])
   (:require [tachyon.hooks :as irc-hooks])
-  (:use [clj-stacktrace core repl]
-        [demogorgon.config]
+  (:require [clj-stacktrace.repl :as stacktrace]) 
+  (:use [demogorgon.config]
         [demogorgon.unicode :only (unicode-hook)]
         [demogorgon.web :only (start-web stop-web)]
         [demogorgon.nh :only (online-players-hook last-dump-hook whereis-hook nh-start nh-init nh-stop)])
@@ -62,4 +62,4 @@
   (try
     (start (create))
     (catch Exception e
-      (pst e))))
+      (stacktrace/pst e))))
