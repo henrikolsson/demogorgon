@@ -11,5 +11,10 @@
                  [tachyon "0.0.2-SNAPSHOT"]
                  [org.twitter4j/twitter4j-core "3.0.3"]
                  [org.xerial/sqlite-jdbc "3.7.2"]]
+  :profiles
+  {:start
+   {:repl-options 
+    {:init-ns demogorgon.core
+     :init (demogorgon.core/-main)}}}
   :jvm-opts ["-Xmx256m"]
   :main demogorgon.core)
