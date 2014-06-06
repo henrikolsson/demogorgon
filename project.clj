@@ -1,4 +1,4 @@
-(defproject demogorgon "1.1.0-SNAPSHOT"
+(defproject demogorgon "1.1.1"
   :description "demogorgon"
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.apache.mina/mina-core  "2.0.7"]
