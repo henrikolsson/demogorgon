@@ -8,7 +8,7 @@
                  [org.slf4j/slf4j-log4j12 "1.7.5"]
                  [org.slf4j/slf4j-api "1.7.5"]
                  [clj-stacktrace "0.2.6"]
-                 [tachyon "0.0.2-SNAPSHOT"]
+                 [tachyon "0.0.2"]
                  [org.twitter4j/twitter4j-core "3.0.3"]
                  [org.xerial/sqlite-jdbc "3.7.2"]]
   :profiles
