@@ -287,28 +287,29 @@
                                   (:deathlev data)
                                   (:death data)))
                         (possessive-gender (:gender data))
-                        (:points data))
-            tweet-prefix (truncate (format "%s (%s %s %s %s), %s points, %s turns, %s"
-                                           (:name data)
-                                           (:role data)
-                                           (:race data)
-                                           (:gender data)
-                                           (:align data)
-                                           (:points data)
-                                           (:turns data)
-                                           (:death data))
-                                   120)
-            url (twitter/shorten-url (format "http://un.nethack.nu/user/%s/dumps/%s.%s.txt.html"
-                                             (:name data)
-                                             (:name data)
-                                             (:endtime data)))
-            final-tweet (str tweet-prefix ", " url)]
+                        (:points data))]
         (if (= (:region data) announce-region)
-          (announce irc out))
-        (try 
-         (twitter/tweet final-tweet)
-         (catch Exception e
-           (.error logger "tweet failed" e)))))))
+          (announce irc out))))))
+
+        ;; (try 
+        ;;  (twitter/tweet final-tweet)
+        ;;  (catch Exception e
+        ;;    (.error logger "tweet failed" e)))))))
+        ;;     tweet-prefix (truncate (format "%s (%s %s %s %s), %s points, %s turns, %s"
+        ;;                                    (:name data)
+        ;;                                    (:role data)
+        ;;                                    (:race data)
+        ;;                                    (:gender data)
+        ;;                                    (:align data)
+        ;;                                    (:points data)
+        ;;                                    (:turns data)
+        ;;                                    (:death data))
+        ;;                            120)
+        ;;     url (twitter/shorten-url (format "http://un.nethack.nu/user/%s/dumps/%s.%s.txt.html"
+        ;;                                      (:name data)
+        ;;                                      (:name data)
+        ;;                                      (:endtime data)))
+        ;;     final-tweet (str tweet-prefix ", " url)]
 
 (defn make-game-action-out [data]
   (condp = (:game_action data)
