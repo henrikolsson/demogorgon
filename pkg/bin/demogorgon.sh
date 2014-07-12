@@ -5,7 +5,7 @@ PROGRAM="demogorgon"
 LOGFILE="$DIR/../logs/$PROGRAM.out"
 PIDFILE="$DIR/../var/$PROGRAM.pid"
 JAR="$DIR/../lib/$PROGRAM.jar"
-JAVA_OPTS=-Xmx128m
+JAVA_OPTS="-Xmx128m -Ddemogorgon.home=$DIR"
 
 get_pid() {
     cat "$PIDFILE"

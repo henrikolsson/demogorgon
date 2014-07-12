@@ -10,7 +10,8 @@
                  [clj-stacktrace "0.2.6"]
                  [tachyon "0.0.2"]
                  [org.twitter4j/twitter4j-core "3.0.3"]
-                 [org.xerial/sqlite-jdbc "3.7.2"]]
+                 [org.xerial/sqlite-jdbc "3.7.2"]
+                 [org.clojure/data.json "0.2.5"]]
   :profiles
   {:start
    {:repl-options 

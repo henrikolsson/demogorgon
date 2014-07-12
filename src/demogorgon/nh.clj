@@ -255,7 +255,7 @@
 
 
 (defn announce [irc msg]
-  (doseq [channel (:channels (:irc config))]
+  (doseq [channel (:channels (:irc @config))]
     (irc/send-message irc channel msg)))
 
 (defn truncate [str max]
@@ -443,13 +443,13 @@
         
 
 (defn run-watcher [watcher]
-  (with-local-vars [files {"livelog"   {:length (.length (File. (str (:un-dir config) "livelog")))
+  (with-local-vars [files {"livelog"   {:length (.length (File. (str (:un-dir @config) "livelog")))
                                         :callback #'handle-livelog-line}
-                           "livelog-us"   {:length (.length (File. (str (:un-dir config) "livelog-us")))
+                           "livelog-us"   {:length (.length (File. (str (:un-dir @config) "livelog-us")))
                                         :callback #'handle-livelog-line}                           
-                           "xlogfile"  {:length (.length (File. (str (:un-dir config) "xlogfile")))
+                           "xlogfile"  {:length (.length (File. (str (:un-dir @config) "xlogfile")))
                                         :callback #'handle-xlogfile-line}
-                           "xlogfile-us"  {:length (.length (File. (str (:un-dir config) "xlogfile-us")))
+                           "xlogfile-us"  {:length (.length (File. (str (:un-dir @config) "xlogfile-us")))
                                         :callback #'handle-xlogfile-line}}]
     (while
      (not (Thread/interrupted))
@@ -462,7 +462,7 @@
            (if file
              (do
                (.debug logger (str "file modified: " fn))
-               (let [ra (RandomAccessFile. (str (:un-dir config) fn) "r")]
+               (let [ra (RandomAccessFile. (str (:un-dir @config) fn) "r")]
                  (.seek ra (:length file))
                  (loop [line (read-line-ra ra)]
                    (if line
@@ -485,7 +485,7 @@
                         :thread (Thread. (proxy [Runnable] []
                                            (run []
                                                 (run-watcher watcher)))))))
-    (.register (.toPath (File. (:un-dir config)))
+    (.register (.toPath (File. (:un-dir @config)))
                (:watch-service @watcher)
                (into-array [StandardWatchEventKinds/ENTRY_MODIFY]))
     (.setUncaughtExceptionHandler
@@ -546,10 +546,10 @@
       [:mode "TEXT"]
       [:gold "INT"])
      (.info logger "table created")
-     (let [lines (read-lines (str (:un-dir config) "xlogfile"))]
+     (let [lines (read-lines (str (:un-dir @config) "xlogfile"))]
        (doseq [line lines]
          (insert-xlogfile-line-db "eu" line)))
-     (let [lines (read-lines (str (:un-dir config) "xlogfile-us"))]
+     (let [lines (read-lines (str (:un-dir @config) "xlogfile-us"))]
        (doseq [line lines]
          (insert-xlogfile-line-db "us" line)))))
   (.info logger "database initialized"))

@@ -1,9 +1,12 @@
 (ns demogorgon.core
   (:import [org.apache.log4j Logger]
+           [java.io File]
            [java.util Random])
   (:require [tachyon.core :as irc])
   (:require [tachyon.hooks :as irc-hooks])
-  (:require [clj-stacktrace.repl :as stacktrace]) 
+  (:require [clj-stacktrace.repl :as stacktrace])
+  (:require [clojure.data.json :as json])
+  (:require [clojure.walk])
   (:use [demogorgon.config]
         [demogorgon.unicode :only (unicode-hook)]
         [demogorgon.web :only (start-web stop-web)]
@@ -33,7 +36,7 @@
     word))
 
 (defn create []
-  (let [irc (irc/create (:irc config))]
+  (let [irc (irc/create (:irc @config))]
     {:connection irc
     :nh (nh-init irc)
     :web (ref nil)}))
@@ -60,6 +63,18 @@
 
 (defn -main[& args]
   (try
+    (let [home (System/getProperty "demogorgon.home" "")
+          config-file (File. (str home (File/separator)
+                                  ".." (File/separator)
+                                  "etc" (File/separator)
+                                  "demogorgon.conf"))]
+      (.info logger (str "Checking for config file: " (.toString config-file)))
+      (if (.exists config-file)
+        (do
+          (.info logger "Found config file")
+          (swap! config merge
+                 (clojure.walk/keywordize-keys
+                  (json/read-str (slurp config-file)))))))
     (start (create))
     (catch Exception e
       (stacktrace/pst e))))
