@@ -1,7 +1,8 @@
 (ns demogorgon.nh
   (:import [java.io File FilenameFilter RandomAccessFile ByteArrayOutputStream]
            [org.apache.log4j Logger]
-           [java.nio.file FileSystems StandardWatchEventKinds])
+           [java.nio.file FileSystems StandardWatchEventKinds]
+           [java.sql Date])
   (:require [clj-stacktrace.repl :as stacktrace]
             [tachyon.core :as irc]
             [demogorgon.twitter :as twitter]
@@ -16,10 +17,6 @@
 (def scummers (ref {}))
 (def announce-region "eu")
 
-(def db {:classname "org.sqlite.JDBC"
-                    :subprotocol "sqlite"
-                    :subname "/tmp/nh.db"
-                    :create true})
 (def roles
      {"arc" "Archeologist"
       "bar" "Barbarian"
@@ -130,11 +127,40 @@
                                 ""))) props)]
     (zipmap keys values)))
 
-(defn insert-xlogfile-line-db [region line]
-  (let [data (assoc (parse-line line) :region region)]
+(defn fdate [s]
+  (str (.substring s 0 4)
+       "-"
+       (.substring s 4 6)
+       "-"
+       (.substring s 6 8)))
+
+(defn map-types [m]
+  (assoc m
+    :points (if (:points m) (Integer/parseInt (:points m)) (:points m))
+    :deathdnum (if (:deathdnum m) (Integer/parseInt (:deathdnum m)) (:deathdnum m))
+    :deathlev (if (:deathlev m) (Integer/parseInt (:deathlev m)) (:deathlev m))
+    :maxlvl (if (:maxlvl m) (Integer/parseInt (:maxlvl m)) (:maxlvl m))
+    :hp (if (:hp m) (Integer/parseInt (:hp m)) (:hp m))
+    :maxhp (if (:maxhp m) (Integer/parseInt (:maxhp m)) (:maxhp m))
+    :deaths (if (:deaths m) (Integer/parseInt (:deaths m)) (:deaths m))
+    :uid (if (:uid m) (Integer/parseInt (:uid m)) (:uid m))
+    :turns (if (:turns m) (Integer/parseInt (:turns m)) (:turns m))
+    :realtime (if (:realtime m) (Integer/parseInt (:realtime m)) (:realtime m))
+    :elbereths (if (:elbereths m) (Integer/parseInt (:elbereths m)) (:elbereths m))
+    :xplevel (if (:xplevel m) (Integer/parseInt (:xplevel m)) (:xplevel m))
+    :exp (if (:exp m) (Integer/parseInt (:exp m)) (:exp m))
+    :gold (if (:gold m) (Integer/parseInt (:gold m)) (:gold m))
+    :endtime (if (:endtime m) (Date. (* 1000 (Integer/parseInt (:endtime m)))) (:endtime m))
+    :starttime (if (:starttime m) (Date. (* 1000 (Integer/parseInt (:starttime m)))) (:starttime m))
+    :deathdate (if (:deathdate m) (Date/valueOf (fdate (:deathdate m))) (:deathdate m))
+    :birthdate (if (:birthdate m) (Date/valueOf (fdate (:birthdate m))) (:birthdate m))))
+
+         
+(defn insert-xlogfile-line-db [region line pos]
+  (let [data (assoc (parse-line line) :region region :fpos pos)]
     (let [record (assoc data :death_uniq (.replaceAll (:death data) ", while .*$", ""))]
       (sql/insert-records :xlogfile
-                        record))))
+                          (map-types record)))))
 
 (defn sanitize-nick [nick]
   (.replaceAll nick "[^\\p{Alnum}]" ""))
@@ -264,7 +290,7 @@
     str))
 
 (defn handle-xlogfile-line [irc file line]
-  (sql/with-connection db
+  (sql/with-connection (:db @config)
     (sql/transaction
      (insert-xlogfile-line-db (region-from-fn file) line)))
   (let [data (assoc (parse-line line) :region (region-from-fn file))]
@@ -499,60 +525,43 @@
 (defn nh-stop [watcher]
   (.close (:watch-service @watcher)))
 
-(defn nh-init-db []
-  (.info logger "re-initializing database..")
-  (if (.exists (File. "/tmp/nh.db"))
-    (.delete (File. "/tmp/nh.db")))
-  (sql/with-connection db
+(defn update-xlogfile [region position]
+  (sql/with-connection (:db @config)
     (sql/transaction
-     (sql/create-table
-      :xlogfile
-      [:id "INTEGER PRIMARY KEY AUTOINCREMENT"]
-      [:version "TEXT"]
-      [:points "INT"]
-      [:deathdnum "INT"]
-      [:deathdname "TEXT"]
-      [:deathlev "INT"]
-      [:maxlvl "INT"]
-      [:dlev_name "TEXT"]
-      [:hp "INT"]
-      [:maxhp "INT"]
-      [:deaths "INT"]
-      [:deathdate "DATE"]
-      [:birthdate "DATE"]
-      [:uid "INT"]
-      [:role "TEXT"]
-      [:race "TEXT"]
-      [:gender "TEXT"]
-      [:align "TEXT"]
-      [:name "TEXT"]
-      [:death "TEXT"]
-      [:death_uniq "TEXT"]
-      [:conduct "TEXT"]
-      [:turns "INT"]
-      [:achieve "TEXT"]
-      [:realtime "INT"]
-      [:starttime "TIMESTAMP"]
-      [:endtime "TIMESTAMP"]
-      [:gender0 "TEXT"]
-      [:align0 "TEXT"]
-      [:flags "TEXT"]
-      [:region "TEXT"]
-      [:event "TEXT"]
-      [:carried "TEXT"]
-      [:elbereths "INT"]
-      [:xplevel "INT"]
-      [:exp "INT"]
-      [:mode "TEXT"]
-      [:gold "INT"])
-     (.info logger "table created")
-     (let [lines (read-lines (str (:un-dir @config) "xlogfile"))]
-       (doseq [line lines]
-         (insert-xlogfile-line-db "eu" line)))
-     (let [lines (read-lines (str (:un-dir @config) "xlogfile-us"))]
-       (doseq [line lines]
-         (insert-xlogfile-line-db "us" line)))))
-  (.info logger "database initialized"))
+     (let [ra (RandomAccessFile.
+               (str (:un-dir @config)
+                    (File/separator) region (File/separator) "xlogfile")
+               "r")]
+       (.seek ra position)
+       (loop [line (read-line-ra ra)]
+         (if line
+           (do
+             (insert-xlogfile-line-db region line (.getFilePointer ra))
+             (recur (read-line-ra ra)))))
+       (let [pos (.getFilePointer ra)]
+         (.close ra)
+         pos)))))
+
+(defn get-xlogfile-positions []
+  (let [regions {:eu 0
+                 :us 0}]
+    (into regions
+          (sql/with-connection (:db @config)
+            (sql/with-query-results
+              rs
+              ["select region, max(fpos) as fpos from xlogfile group by region"]
+              (doall (map (fn [row]
+                            [(keyword (:region row)) (:fpos row)])
+                          rs)))))))
+
+(defn nh-init-db []
+  (let [regions (get-xlogfile-positions)]
+    (.info logger "initializing database..")
+    (doseq [region (keys regions)]
+      (.info logger (str (name region) " pos " (get regions region)))
+      (.info logger (str (name region) " to "
+                         (update-xlogfile (name region) (get regions region)))))
+    (.info logger "database initialized")))
 
 (defn nh-start [watcher]
   (nh-init-db)

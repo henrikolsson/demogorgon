@@ -5,7 +5,6 @@
   (:require [tachyon.core :as irc])
   (:require [tachyon.hooks :as irc-hooks])
   (:require [clj-stacktrace.repl :as stacktrace])
-  (:require [clojure.data.json :as json])
   (:require [clojure.walk])
   (:use [demogorgon.config]
         [demogorgon.unicode :only (unicode-hook)]
@@ -72,9 +71,7 @@
       (if (.exists config-file)
         (do
           (.info logger "Found config file")
-          (swap! config merge
-                 (clojure.walk/keywordize-keys
-                  (json/read-str (slurp config-file)))))))
+          (read-config config-file))))
     (start (create))
     (catch Exception e
       (stacktrace/pst e))))

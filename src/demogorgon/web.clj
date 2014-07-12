@@ -8,16 +8,12 @@
         [hiccup.page :only (html5 include-js include-css)]
         [hiccup.util :only (escape-html)]
         [hiccup.element :only (link-to)]
-        [demogorgon.nh :only (parse-bitfield conducts)])
+        [demogorgon.nh :only (parse-bitfield conducts)]
+        [demogorgon.config])
   (:require [compojure.route :as route]
             [clojure.java.jdbc :as sql]))
 
 (def logger (Logger/getLogger "demogorgon.web"))
-
-(def db {:classname "org.sqlite.JDBC"
-         :subprotocol "sqlite"
-         :subname "/tmp/nh.db"
-         :create true})
 
 (defn layout [& content]
   (html5
@@ -142,7 +138,7 @@
     (map #'rs-row-to-tr-ascension rs)]])
 
 (defn ascensions []
-  (sql/with-connection db
+  (sql/with-connection (:db @config)
     (let [rows
           (map #(assoc %1 :conducts (parse-bitfield conducts (:conduct %1)))
                (sql/with-query-results rs
@@ -159,7 +155,7 @@
        conducts-table))))
 
 (defn game [id]
-  (sql/with-connection db
+  (sql/with-connection (:db @config)
     (sql/with-query-results
       rs
       ["select * from xlogfile where id = ?" id]
@@ -171,7 +167,7 @@
 (defn highscores
   ([] (highscores 10))
   ([limit]
-     (sql/with-connection db
+     (sql/with-connection (:db @config)
        (sql/with-query-results
          rs
          ["select * from xlogfile order by points desc limit ?" limit]
@@ -179,7 +175,7 @@
           (rs-to-table rs))))))
 
 (defn cause [cause-str]
-  (sql/with-connection db
+  (sql/with-connection (:db @config)
     (sql/with-query-results
       rs
       ["select * from xlogfile where death_uniq = ? order by points desc" (url-decode cause-str)]
@@ -187,7 +183,7 @@
        (rs-to-table rs)))))
 
 (defn last-games []
-  (sql/with-connection db
+  (sql/with-connection (:db @config)
     (sql/with-query-results
       rs
       ["select * from xlogfile order by endtime desc limit ?" 25]
@@ -195,7 +191,7 @@
        (rs-to-table rs)))))
 
 (defn frontpage []
-  (sql/with-connection db
+  (sql/with-connection (:db @config)
     (sql/with-query-results
       rs
       ["select * from xlogfile order by endtime desc limit ?" 5]
@@ -215,7 +211,7 @@
         (rs-to-table rs)]))))
 
 (defn user [name]
-  (sql/with-connection db
+  (sql/with-connection (:db @config)
     (sql/with-query-results
       rs
       ["select count(*) as games_played, (select count(*) from xlogfile where name = ? and death LIKE 'ascended%') as ascensions from xlogfile where name = ?" name name]
@@ -238,7 +234,7 @@
               (rs-to-table rs2))]))))))
 
 (defn users []
-  (sql/with-connection db
+  (sql/with-connection (:db @config)
     (sql/with-query-results
       rs
       ["select distinct name from xlogfile order by name"]
@@ -250,7 +246,7 @@
              rs)]))))
 
 (defn causes []
-  (sql/with-connection db
+  (sql/with-connection (:db @config)
     (sql/with-query-results
       rs
       ["select distinct death_uniq as death, count(*) as count from xlogfile group by death order by count desc"]
