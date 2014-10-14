@@ -1,7 +1,7 @@
 CREATE TABLE dglusers(
        id SERIAL PRIMARY KEY,
        username TEXT UNIQUE NOT NULL,
-       email TEXT UNIQUE NOT NULL,
+       email TEXT NOT NULL,
        env TEXT,
        password TEXT NOT NULL,
        flags INT NOT NULL DEFAULT 0
