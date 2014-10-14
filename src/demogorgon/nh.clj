@@ -1,19 +1,21 @@
 (ns demogorgon.nh
   (:import [java.io File FilenameFilter RandomAccessFile ByteArrayOutputStream]
-           [org.apache.log4j Logger]
+           [org.slf4j Logger LoggerFactory]
            [java.nio.file FileSystems StandardWatchEventKinds]
-           [java.sql Date])
+           [java.sql Date Timestamp])
   (:require [clj-stacktrace.repl :as stacktrace]
             [tachyon.core :as irc]
             [demogorgon.twitter :as twitter]
             [clojure.java.jdbc :as sql])
+  (:require [clojure.core.async :as async :refer [close! go chan put! <!]])
   (:use	[clojure.java.io :only (reader)]
         [demogorgon.util :only (read-lines)]
+        [demogorgon.watch :only (start-watcher stop-watcher create-watcher)]
         [demogorgon.config]))
 
 (defstruct watcher-instance :watch-service :events :thread :irc)
 
-(def logger (Logger/getLogger "demogorgon.nh"))
+(def ^{:private true} logger (LoggerFactory/getLogger "demogorgon.nh"))
 (def scummers (ref {}))
 (def announce-region "eu")
 
@@ -150,8 +152,8 @@
     :xplevel (if (:xplevel m) (Integer/parseInt (:xplevel m)) (:xplevel m))
     :exp (if (:exp m) (Integer/parseInt (:exp m)) (:exp m))
     :gold (if (:gold m) (Integer/parseInt (:gold m)) (:gold m))
-    :endtime (if (:endtime m) (Date. (* 1000 (Integer/parseInt (:endtime m)))) (:endtime m))
-    :starttime (if (:starttime m) (Date. (* 1000 (Integer/parseInt (:starttime m)))) (:starttime m))
+    :endtime (if (:endtime m) (Timestamp. (* 1000 (Integer/parseInt (:endtime m)))) (:endtime m))
+    :starttime (if (:starttime m) (Timestamp. (* 1000 (Integer/parseInt (:starttime m)))) (:starttime m))
     :deathdate (if (:deathdate m) (Date/valueOf (fdate (:deathdate m))) (:deathdate m))
     :birthdate (if (:birthdate m) (Date/valueOf (fdate (:birthdate m))) (:birthdate m))))
 
@@ -222,14 +224,15 @@
    (alter scummers assoc player (+ (System/currentTimeMillis) 30000))))
 
 (defn is-scum [player]
-  (dosync
-   (if (contains? @scummers player)
-     (if (< (get @scummers player) (System/currentTimeMillis))
-       (do
-         (.info logger (str "removing scum " player))
-         (alter scummers dissoc player)
-         false)
-       true))))
+  nil)
+  ;; (dosync
+  ;;  (if (contains? @scummers player)
+  ;;    (if (< (get @scummers player) (System/currentTimeMillis))
+  ;;      (do
+  ;;        (.info logger (str "removing scum " player))
+  ;;        (alter scummers dissoc player)
+  ;;        false)
+  ;;      true))))
 
 (defn online-players-hook [irc object match]
   (let [players (get-online-players)]
@@ -288,34 +291,6 @@
   (if (> (.length str) max)
     (.substring str 0 max)
     str))
-
-(defn handle-xlogfile-line [irc file line]
-  (sql/with-connection (:db @config)
-    (sql/transaction
-     (insert-xlogfile-line-db (region-from-fn file) line)))
-  (let [data (assoc (parse-line line) :region (region-from-fn file))]
-    (if (and (or (< (Integer/parseInt (:turns data)) 10)
-                 (< (Integer/parseInt (:points data)) 10))
-             (or (= (:death data) "quit")
-                 (= (:death data) "escaped")))
-      (add-scum (:name data)))
-    (if (not (is-scum (:name data)))
-      (let [out (format "%s, the %s %s %s %s%s %s score was %s."
-                        (:name data)
-                        (alignment (:align data))
-                        (gender (:gender data))
-                        (race (:race data))
-                        (role (:role data))
-                        (if (.startsWith (:death data) "ascended")
-                          (str " " (:death data) " to demigod-hood.")
-                          (format ", left this world %s on level %s, %s."
-                                  (zone (:deathdname data))
-                                  (:deathlev data)
-                                  (:death data)))
-                        (possessive-gender (:gender data))
-                        (:points data))]
-        (if (= (:region data) announce-region)
-          (announce irc out))))))
 
         ;; (try 
         ;;  (twitter/tweet final-tweet)
@@ -444,22 +419,15 @@
 
     (str "unhandled line: " data)))
 
-(defn handle-livelog-line [irc file line]
-  (let [data (assoc (parse-line line) :region (region-from-fn file))]
-    (if (and (not (is-scum (:player data)))
-             (= (:region data) announce-region))
-      (let [out (make-livelog-out data)]
-        (if out
-          (announce irc out))))))
-
 ; read a line from a RandomAccessFile, in utf-8
 (defn read-line-ra [ra]
-  (let [buffer (ByteArrayOutputStream.)]
+  (let [buffer (ByteArrayOutputStream.)
+        pos (.getFilePointer ra)]
     (loop [b (.read ra)]
       (if (= b -1)
-        (if (= (.size buffer) 0)
-          nil
-          (String. (.toByteArray buffer) "UTF-8"))
+        (do
+          (.seek ra pos)
+          nil)
         (do
           (if (= b 0x0a)
             (String. (.toByteArray buffer) "UTF-8")
@@ -467,80 +435,76 @@
               (.write buffer b)
               (recur (.read ra)))))))))
         
-
-(defn run-watcher [watcher]
-  (with-local-vars [files {"livelog"   {:length (.length (File. (str (:un-dir @config) "livelog")))
-                                        :callback #'handle-livelog-line}
-                           "livelog-us"   {:length (.length (File. (str (:un-dir @config) "livelog-us")))
-                                        :callback #'handle-livelog-line}                           
-                           "xlogfile"  {:length (.length (File. (str (:un-dir @config) "xlogfile")))
-                                        :callback #'handle-xlogfile-line}
-                           "xlogfile-us"  {:length (.length (File. (str (:un-dir @config) "xlogfile-us")))
-                                        :callback #'handle-xlogfile-line}}]
-    (while
-     (not (Thread/interrupted))
-     (.debug logger (str "Waiting for events.."))
-     (let [key (.take (:watch-service @watcher))]
-       (.debug logger "Got events")
-       (doseq [event (.pollEvents key)]
-         (let [fn (.toString (.context event))
-               file (get (var-get files) fn)]
-           (if file
-             (do
-               (.debug logger (str "file modified: " fn))
-               (let [ra (RandomAccessFile. (str (:un-dir @config) fn) "r")]
-                 (.seek ra (:length file))
-                 (loop [line (read-line-ra ra)]
-                   (if line
-                     (do 
-                       ((:callback file) (:irc @watcher) fn line)
-                       (var-set files (assoc (var-get files)
-                                        fn
-                                        (assoc (get (var-get files) fn) :length (.getFilePointer ra))))
-                       (recur (read-line-ra ra)))))
-                 (.close ra)))))
-         (.reset key))))))
-
 (defn nh-init [irc]
-  (let [watcher (ref (struct-map watcher-instance
-                       :watch-service (.newWatchService (FileSystems/getDefault))
-                       :thread nil
-                       :irc irc))]
-    (dosync
-     (ref-set watcher (assoc @watcher
-                        :thread (Thread. (proxy [Runnable] []
-                                           (run []
-                                                (run-watcher watcher)))))))
-    (.register (.toPath (File. (:un-dir @config)))
-               (:watch-service @watcher)
-               (into-array [StandardWatchEventKinds/ENTRY_MODIFY]))
-    (.setUncaughtExceptionHandler
-     (:thread @watcher)
-     (proxy [Thread$UncaughtExceptionHandler] []
-       (uncaughtException [thread throwable]
-                          (.error logger "bah" throwable)
-                          (stacktrace/pst throwable))))
-    watcher))
+  {:watcher (create-watcher [(:un-dir @config)] {:recursive true})
+   :irc irc})
 
-(defn nh-stop [watcher]
-  (.close (:watch-service @watcher)))
+(defn nh-stop [nh]
+  (stop-watcher (:watcher nh)))
 
-(defn update-xlogfile [region position]
+(defn update-xlogfile [region position announce? irc]
   (sql/with-connection (:db @config)
     (sql/transaction
      (let [ra (RandomAccessFile.
                (str (:un-dir @config)
                     (File/separator) region (File/separator) "xlogfile")
                "r")]
+       (.info logger (str (:un-dir @config)
+                          (File/separator) region (File/separator) "xlogfile"))
+       (.info logger (str "ra: " ra))
        (.seek ra position)
        (loop [line (read-line-ra ra)]
          (if line
            (do
+             (if announce?
+               (let [data (assoc (parse-line line) :region region)]
+                 (if (and (or (< (Integer/parseInt (:turns data)) 10)
+                              (< (Integer/parseInt (:points data)) 10))
+                          (or (= (:death data) "quit")
+                              (= (:death data) "escaped")))
+                   (add-scum (:name data)))
+                 (if (not (is-scum (:name data)))
+                   (let [out (format "[%s] %s, the %s %s %s %s%s %s score was %s."
+                                     region
+                                     (:name data)
+                                     (alignment (:align data))
+                                     (gender (:gender data))
+                                     (race (:race data))
+                                     (role (:role data))
+                                     (if (.startsWith (:death data) "ascended")
+                                       (str " " (:death data) " to demigod-hood.")
+                                       (format ", left this world %s on level %s, %s."
+                                               (zone (:deathdname data))
+                                               (:deathlev data)
+                                               (:death data)))
+                                     (possessive-gender (:gender data))
+                                     (:points data))]
+                     (announce irc out)))))
              (insert-xlogfile-line-db region line (.getFilePointer ra))
              (recur (read-line-ra ra)))))
        (let [pos (.getFilePointer ra)]
          (.close ra)
          pos)))))
+
+(defn handle-livelog [region position irc]
+  (let [ra (RandomAccessFile.
+            (str (:un-dir @config)
+                 (File/separator) region (File/separator) "livelog")
+            "r")]
+    (.info logger (str (:un-dir @config)
+                       (File/separator) region (File/separator) "livelog"))
+    (.info logger (str "ra: " ra))
+    (.seek ra position)
+    (loop [line (read-line-ra ra)]
+      (if line
+        (let [data (assoc (parse-line line) :region region)
+              out (make-livelog-out data)]
+          (if out
+            (announce irc (format "[%s] %s" region out)))
+          (recur (read-line-ra ra)))))
+    (let [pos (.getFilePointer ra)]
+         (.close ra)
+         pos)))
 
 (defn get-xlogfile-positions []
   (let [regions {:eu 0
@@ -560,12 +524,133 @@
     (doseq [region (keys regions)]
       (.info logger (str (name region) " pos " (get regions region)))
       (.info logger (str (name region) " to "
-                         (update-xlogfile (name region) (get regions region)))))
+                         (update-xlogfile (name region) (get regions region) false nil))))
     (.info logger "database initialized")))
 
-(defn nh-start [watcher]
-  (nh-init-db)
-  (.start (:thread @watcher)))
+(defn file-length [f]
+  (.length (File. f)))
 
-(defn nh-run [watcher]
-  (.start (:thread @watcher)))
+(defn handle-file-update [nh path state]
+  (try
+    (.info logger (str "in: " state))
+    (let [cnt (.getNameCount path)
+          region (keyword (.toString (.getName path (- cnt 2))))
+          file (.toString (.getName path (- cnt 1)))]
+      (.info logger (str region " - " file " - " cnt))
+      (.info logger (str (get state region)))
+      (.info logger (str (get (get state region) :xlogfile)))
+      (if (.endsWith file "xlogfile")
+        (let [foo (update-xlogfile (name region) (get (get state region) :xlogfile) true (:irc nh))
+              new-state (assoc-in state [region :xlogfile] foo)]
+          (.info logger (str "foox: " foo))
+          (.info logger (str "new state: " new-state))
+          new-state)
+        (if (.endsWith file "livelog")
+          (let [new-state
+                (assoc-in state [region :livelog] (handle-livelog (name region) (get (get state region) :livelog) (:irc nh)))]
+            (.info logger (str "new state: " new-state))
+            new-state)
+          state)))
+    (catch Exception e
+      (.error logger "file update failed" e)
+      (.info logger (str "ret: " state))
+      state)))
+
+(defn nh-run [nh]
+  (let [chan (start-watcher (:watcher nh))]
+    (go 
+     (loop [state {:us {:xlogfile (file-length (str (:un-dir @config) "/us/xlogfile"))
+                        :livelog (file-length (str (:un-dir @config) "/us/livelog"))}
+                   :eu {:xlogfile (file-length (str (:un-dir @config) "/eu/xlogfile"))
+                        :livelog (file-length (str (:un-dir @config) "/eu/livelog"))}}
+            event (<! chan)]
+       (.info logger (str "event: " event))
+       (if event
+           (let [new-state (handle-file-update nh (second event) state)]
+             (.info logger (str "recur, state: " new-state))
+             (recur new-state (<! chan))))))))
+           
+
+(defn nh-start [nh]
+  (nh-init-db)
+  (nh-run nh))
+
+
+;; demogorgon.core.bot
+
+;; (def asdf (nh-init nil))
+
+;; (def chanx (nh-run asdf))
+
+
+;; (nh-stop asdf)
+;; (close! chanx)
+
+
+;(swap! config merge {:un-dir "/home/henrik/tmp/un"})
+
+
+
+
+;; (defn run-watcher [watcher]
+;;   (with-local-vars [files {"livelog"   {:length (.length (File. (str (:un-dir @config) "livelog")))
+;;                                         :callback #'handle-livelog-line}
+;;                            "livelog-us"   {:length (.length (File. (str (:un-dir @config) "livelog-us")))
+;;                                         :callback #'handle-livelog-line}                           
+;;                            "xlogfile"  {:length (.length (File. (str (:un-dir @config) "xlogfile")))
+;;                                         :callback #'handle-xlogfile-line}
+;;                            "xlogfile-us"  {:length (.length (File. (str (:un-dir @config) "xlogfile-us")))
+;;                                         :callback #'handle-xlogfile-line}}]
+;;     (while
+;;      (not (Thread/interrupted))
+;;      (.debug logger (str "Waiting for events.."))
+;;      (let [key (.take (:watch-service @watcher))]
+;;        (.debug logger "Got events")
+;;        (doseq [event (.pollEvents key)]
+;;          (let [fn (.toString (.context event))
+;;                file (get (var-get files) fn)]
+;;            (if file
+;;              (do
+;;                (.debug logger (str "file modified: " fn))
+;;                (let [ra (RandomAccessFile. (str (:un-dir @config) fn) "r")]
+;;                  (.seek ra (:length file))
+;;                  (loop [line (read-line-ra ra)]
+;;                    (if line
+;;                      (do 
+;;                        ((:callback file) (:irc @watcher) fn line)
+;;                        (var-set files (assoc (var-get files)
+;;                                         fn
+;;                                         (assoc (get (var-get files) fn) :length (.getFilePointer ra))))
+;;                        (recur (read-line-ra ra)))))
+;;                  (.close ra)))))
+;         (.reset key))))))
+
+
+;; (defn handle-xlogfile-line [irc file line]  
+;;   (sql/with-connection (:db @config)
+;;     (sql/transaction
+;;      (insert-xlogfile-line-db (region-from-fn file) line)))
+;;   (let [data (assoc (parse-line line) :region (region-from-fn file))]
+;;     (if (and (or (< (Integer/parseInt (:turns data)) 10)
+;;                  (< (Integer/parseInt (:points data)) 10))
+;;              (or (= (:death data) "quit")
+;;                  (= (:death data) "escaped")))
+;;       (add-scum (:name data)))
+;;     (if (not (is-scum (:name data)))
+;;       (let [out (format "[%s] %s, the %s %s %s %s%s %s score was %s."
+;;                         (region-from-fn file)
+;;                         (:name data)
+;;                         (alignment (:align data))
+;;                         (gender (:gender data))
+;;                         (race (:race data))
+;;                         (role (:role data))
+;;                         (if (.startsWith (:death data) "ascended")
+;;                           (str " " (:death data) " to demigod-hood.")
+;;                           (format ", left this world %s on level %s, %s."
+;;                                   (zone (:deathdname data))
+;;                                   (:deathlev data)
+;;                                   (:death data)))
+;;                         (possessive-gender (:gender data))
+;;                         (:points data))]
+;;         (announce irc out)))))
+

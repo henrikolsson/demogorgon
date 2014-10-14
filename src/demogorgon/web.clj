@@ -71,13 +71,15 @@
   "<h1>Page not found</h1>")
 
 (defn make-dump-link [row]
-  (let [base (str "/user/" (:name row) "/dumps/" (:name row ) "." (:endtime row))
+  (let [base (str "/user/" (:name row) "/dumps/" (:region row) "/" (:name row ) "."
+                  (/ (.getTime (:endtime row)) 1000))
         file-base (str "/srv/un.nethack.nu" base)
         extension (if (.exists (File. (str file-base ".txt.html")))
                     ".txt.html"
                     (if (.exists (File. (str file-base ".txt")))
                       ".txt"
                       nil))]
+    (.info logger (str file-base))
     (if extension
       [:a {:href (str base extension)} (:id row)]
       (:id row))))
@@ -249,7 +251,7 @@
   (sql/with-connection (:db @config)
     (sql/with-query-results
       rs
-      ["select distinct death_uniq as death, count(*) as count from xlogfile group by death order by count desc"]
+      ["select distinct death_uniq as death, count(*) as count from xlogfile group by death_uniq order by count desc"]
       (layout
        (map (fn [row]
               [:div 

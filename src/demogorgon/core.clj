@@ -9,10 +9,12 @@
   (:use [demogorgon.config]
         [demogorgon.unicode :only (unicode-hook)]
         [demogorgon.web :only (start-web stop-web)]
-        [demogorgon.nh :only (online-players-hook last-dump-hook whereis-hook nh-start nh-init nh-stop)])
+        [demogorgon.nh :only (online-players-hook last-dump-hook whereis-hook nh-start nh-run nh-init nh-stop)]
+        [clojure.tools.nrepl.server :only (start-server stop-server)])
   (:gen-class))
 
 (def logger (Logger/getLogger "demogorgon.core"))
+(defonce bot (atom nil))
 
 (defn get-memory-info []
   (let [runtime (Runtime/getRuntime)
@@ -37,13 +39,14 @@
 (defn create []
   (let [irc (irc/create (:irc @config))]
     {:connection irc
-    :nh (nh-init irc)
-    :web (ref nil)}))
+     :nh (nh-init irc)
+     :web (ref nil)}))
 
 (defn start [bot]
-  (let [logger (Logger/getLogger "main")]
+  (let [logger (Logger/getLogger "main")
+        server (start-server :port 7888)]
     (nh-start (:nh bot))
-    
+    (.info logger (str "Server is: " server))
     (irc-hooks/add-message-hook (:connection bot) #"^\.rng (.+)" #'rand-hook)
     (irc-hooks/add-message-hook (:connection bot) #"^\.rnd (.+)" #'rand-hook)
     (irc-hooks/add-message-hook (:connection bot) #"^\.random (.+)" #'rand-hook)
@@ -72,6 +75,14 @@
         (do
           (.info logger "Found config file")
           (read-config config-file))))
-    (start (create))
+    (swap! bot (fn [x] (create)))
+    (start @bot)
     (catch Exception e
       (stacktrace/pst e))))
+
+;(def fuck (nh-init (:connection @bot)))
+;(nh-start fuck)
+;(nh-stop fuck)
+
+;(nh-start (:nh @bot))
+;(nh-stop (:nh @bot))a
