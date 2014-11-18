@@ -180,7 +180,7 @@
   (sql/with-connection (:db @config)
     (sql/with-query-results
       rs
-      ["select * from xlogfile where death_uniq = ? order by points desc" (url-decode cause-str)]
+      ["select * from xlogfile where death_uniq = ? order by points desc limit 100" (url-decode cause-str)]
       (layout
        (rs-to-table rs)))))
 
