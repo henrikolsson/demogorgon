@@ -1,10 +1,8 @@
 (ns demogorgon.watch
-  (:import [org.apache.log4j Logger])
   (:import [java.nio.file FileSystems StandardWatchEventKinds]
            [java.io File])
-  (:require [clojure.core.async :as async :refer [close! go chan put! <!]]))
-
-(def ^{:private true} logger (Logger/getLogger "demogorgon.watch"))
+  (:require [clojure.core.async :as async :refer [close! go chan put! <!]]
+            [clojure.tools.logging :as log]))
 
 (defn- to-file-collection [obj]
   (map #(File. %1)
@@ -16,7 +14,7 @@
   (filter #(.isDirectory %) (file-seq path)))
 
 (defn- java-event-to-keyword [e]
-  (.trace logger e)
+  (log/trace e)
   (cond
    (= e StandardWatchEventKinds/ENTRY_MODIFY) :modify
    (= e StandardWatchEventKinds/ENTRY_CREATE) :create
@@ -24,20 +22,20 @@
 
 (defn- run-watcher [ws channel keys]
   (try
-    (.info logger "watcher starting")
+    (log/info "watcher starting")
     (while true
-      (.trace logger "waiting for events..")
+      (log/trace "waiting for events..")
       (let [key (.take ws)]
         (doseq [event (.pollEvents key)]
-          (.trace logger "got event")
+          (log/trace "got event")
           (put! channel [(java-event-to-keyword (.kind event))
                          (.resolve (get keys key) (.context event))])
-          (.trace logger "dispatched"))
+          (log/trace "dispatched"))
         (.reset key)))
     (catch java.nio.file.ClosedWatchServiceException cwse
-      (.info logger "closed"))
+      (log/info "closed"))
     (finally
-      (.info logger "done"))))
+      (log/info "done"))))
 
 (defn create-watcher
   ([paths] (create-watcher paths {:recursive false}))

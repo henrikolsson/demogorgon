@@ -1,11 +1,11 @@
 (ns demogorgon.core
-  (:import [org.apache.log4j Logger]
-           [java.io File]
+  (:import [java.io File]
            [java.util Random])
-  (:require [tachyon.core :as irc])
-  (:require [tachyon.hooks :as irc-hooks])
-  (:require [clj-stacktrace.repl :as stacktrace])
-  (:require [clojure.walk])
+  (:require [tachyon.core :as irc]
+            [tachyon.hooks :as irc-hooks]
+            [clj-stacktrace.repl :as stacktrace]
+            [clojure.walk]
+            [clojure.tools.logging :as log])
   (:use [demogorgon.config]
         [demogorgon.unicode :only (unicode-hook)]
         [demogorgon.web :only (start-web stop-web)]
@@ -13,7 +13,6 @@
         [clojure.tools.nrepl.server :only (start-server stop-server)])
   (:gen-class))
 
-(def logger (Logger/getLogger "demogorgon.core"))
 (defonce bot (atom nil))
 
 (defn get-memory-info []
@@ -25,9 +24,9 @@
     (str "used " used " free " free " total " total " max " max)))
 
 (defn print-debug []
-  (.debug logger (str "before " (get-memory-info)))
+  (log/debug (str "before " (get-memory-info)))
   (.gc (Runtime/getRuntime))
-  (.debug logger (str "after  " (get-memory-info))))
+  (log/debug (str "after  " (get-memory-info))))
 
 (defn rand-hook [irc object match]
   (let [words (.split (second match) " ")
@@ -43,10 +42,9 @@
      :web (ref nil)}))
 
 (defn start [bot]
-  (let [logger (Logger/getLogger "main")
-        server (start-server :port 7888)]
+  (let [server (start-server :port 7888)]
     (nh-start (:nh bot))
-    (.info logger (str "Server is: " server))
+    (log/info (str "Server is: " server))
     (irc-hooks/add-message-hook (:connection bot) #"^\.rng (.+)" #'rand-hook)
     (irc-hooks/add-message-hook (:connection bot) #"^\.rnd (.+)" #'rand-hook)
     (irc-hooks/add-message-hook (:connection bot) #"^\.random (.+)" #'rand-hook)
@@ -70,10 +68,10 @@
                                   ".." (File/separator)
                                   "etc" (File/separator)
                                   "demogorgon.conf"))]
-      (.info logger (str "Checking for config file: " (.toString config-file)))
+      (log/info (str "Checking for config file: " (.toString config-file)))
       (if (.exists config-file)
         (do
-          (.info logger "Found config file")
+          (log/info "Found config file")
           (read-config config-file))))
     (swap! bot (fn [x] (create)))
     (start @bot)

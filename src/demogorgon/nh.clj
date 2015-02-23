@@ -1,6 +1,5 @@
 (ns demogorgon.nh
   (:import [java.io File FilenameFilter RandomAccessFile ByteArrayOutputStream]
-           [org.slf4j Logger LoggerFactory]
            [java.nio.file FileSystems StandardWatchEventKinds]
            [java.sql Date Timestamp])
   (:require [clj-stacktrace.repl :as stacktrace]
@@ -16,7 +15,6 @@
 
 (defstruct watcher-instance :watch-service :events :thread :irc)
 
-(def ^{:private true} logger (LoggerFactory/getLogger "demogorgon.nh"))
 (def scummers (ref {}))
 (def announce-region "eu")
 
@@ -220,7 +218,7 @@
       (str "No dumpfile for " nick))))
 
 (defn add-scum [player]
-  (.info logger (str "adding scum " player))
+  (log/info (str "adding scum " player))
   (dosync
    (alter scummers assoc player (+ (System/currentTimeMillis) 30000))))
 
@@ -230,7 +228,7 @@
   ;;  (if (contains? @scummers player)
   ;;    (if (< (get @scummers player) (System/currentTimeMillis))
   ;;      (do
-  ;;        (.info logger (str "removing scum " player))
+  ;;        (log/info (str "removing scum " player))
   ;;        (alter scummers dissoc player)
   ;;        false)
   ;;      true))))
@@ -296,7 +294,7 @@
         ;; (try 
         ;;  (twitter/tweet final-tweet)
         ;;  (catch Exception e
-        ;;    (.error logger "tweet failed" e)))))))
+        ;;    (log/error "tweet failed" e)))))))
         ;;     tweet-prefix (truncate (format "%s (%s %s %s %s), %s points, %s turns, %s"
         ;;                                    (:name data)
         ;;                                    (:role data)
@@ -449,9 +447,9 @@
                (str (:un-dir @config)
                     (File/separator) region (File/separator) "xlogfile")
                "r")]
-       (.info logger (str (:un-dir @config)
+       (log/info (str (:un-dir @config)
                           (File/separator) region (File/separator) "xlogfile"))
-       (.info logger (str "ra: " ra))
+       (log/info (str "ra: " ra))
        (.seek ra position)
        (loop [line (read-line-ra ra)]
          (if line
@@ -491,9 +489,9 @@
             (str (:un-dir @config)
                  (File/separator) region (File/separator) "livelog")
             "r")]
-    (.info logger (str (:un-dir @config)
+    (log/info (str (:un-dir @config)
                        (File/separator) region (File/separator) "livelog"))
-    (.info logger (str "ra: " ra))
+    (log/info (str "ra: " ra))
     (.seek ra position)
     (loop [line (read-line-ra ra)]
       (if line
@@ -518,40 +516,40 @@
 
 (defn nh-init-db []
   (let [regions (get-xlogfile-positions)]
-    (.info logger "initializing database..")
+    (log/info "initializing database..")
     (doseq [region (keys regions)]
-      (.info logger (str (name region) " pos " (get regions region)))
-      (.info logger (str (name region) " to "
+      (log/info (str (name region) " pos " (get regions region)))
+      (log/info (str (name region) " to "
                          (update-xlogfile (name region) (get regions region) false nil))))
-    (.info logger "database initialized")))
+    (log/info "database initialized")))
 
 (defn file-length [f]
   (.length (File. f)))
 
 (defn handle-file-update [nh path state]
   (try
-    (.info logger (str "in: " state))
+    (log/info (str "in: " state))
     (let [cnt (.getNameCount path)
           region (keyword (.toString (.getName path (- cnt 2))))
           file (.toString (.getName path (- cnt 1)))]
-      (.info logger (str region " - " file " - " cnt))
-      (.info logger (str (get state region)))
-      (.info logger (str (get (get state region) :xlogfile)))
+      (log/info (str region " - " file " - " cnt))
+      (log/info (str (get state region)))
+      (log/info (str (get (get state region) :xlogfile)))
       (if (.endsWith file "xlogfile")
         (let [foo (update-xlogfile (name region) (get (get state region) :xlogfile) true (:irc nh))
               new-state (assoc-in state [region :xlogfile] foo)]
-          (.info logger (str "foox: " foo))
-          (.info logger (str "new state: " new-state))
+          (log/info (str "foox: " foo))
+          (log/info (str "new state: " new-state))
           new-state)
         (if (.endsWith file "livelog")
           (let [new-state
                 (assoc-in state [region :livelog] (handle-livelog (name region) (get (get state region) :livelog) (:irc nh)))]
-            (.info logger (str "new state: " new-state))
+            (log/info (str "new state: " new-state))
             new-state)
           state)))
     (catch Exception e
-      (.error logger "file update failed" e)
-      (.info logger (str "ret: " state))
+      (log/error "file update failed" e)
+      (log/info (str "ret: " state))
       state)))
 
 (defn nh-run [nh]
@@ -562,10 +560,10 @@
                    :eu {:xlogfile (file-length (str (:un-dir @config) "/eu/xlogfile"))
                         :livelog (file-length (str (:un-dir @config) "/eu/livelog"))}}
             event (<! chan)]
-       (.info logger (str "event: " event))
+       (log/info (str "event: " event))
        (if event
            (let [new-state (handle-file-update nh (second event) state)]
-             (.info logger (str "recur, state: " new-state))
+             (log/info (str "recur, state: " new-state))
              (recur new-state (<! chan))))))))
            
 
@@ -601,15 +599,15 @@
 ;;                                         :callback #'handle-xlogfile-line}}]
 ;;     (while
 ;;      (not (Thread/interrupted))
-;;      (.debug logger (str "Waiting for events.."))
+;;      (log/debug (str "Waiting for events.."))
 ;;      (let [key (.take (:watch-service @watcher))]
-;;        (.debug logger "Got events")
+;;        (log/debug "Got events")
 ;;        (doseq [event (.pollEvents key)]
 ;;          (let [fn (.toString (.context event))
 ;;                file (get (var-get files) fn)]
 ;;            (if file
 ;;              (do
-;;                (.debug logger (str "file modified: " fn))
+;;                (log/debug (str "file modified: " fn))
 ;;                (let [ra (RandomAccessFile. (str (:un-dir @config) fn) "r")]
 ;;                  (.seek ra (:length file))
 ;;                  (loop [line (read-line-ra ra)]

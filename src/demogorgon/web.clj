@@ -1,6 +1,5 @@
 (ns demogorgon.web
-  (:import [java.io File]
-           [org.apache.log4j Logger])
+  (:import [java.io File])
   (:use [compojure.core :only (defroutes GET)]
         [ring.adapter.jetty :only (run-jetty)]
         [ring.util.codec :only (url-encode url-decode)]
@@ -11,9 +10,8 @@
         [demogorgon.nh :only (parse-bitfield conducts)]
         [demogorgon.config])
   (:require [compojure.route :as route]
-            [clojure.java.jdbc :as sql]))
-
-(def logger (Logger/getLogger "demogorgon.web"))
+            [clojure.java.jdbc :as sql]
+            [clojure.tools.logging :as log]))
 
 (defn layout [& content]
   (html5
@@ -79,7 +77,7 @@
                     (if (.exists (File. (str file-base ".txt")))
                       ".txt"
                       nil))]
-    (.info logger (str file-base))
+    (log/info (str file-base))
     (if extension
       [:a {:href (str base extension)} (:id row)]
       (:id row))))
