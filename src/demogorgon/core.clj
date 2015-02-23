@@ -76,11 +76,5 @@
     (swap! bot (fn [x] (create)))
     (start @bot)
     (catch Exception e
-      (stacktrace/pst e))))
-
-;(def fuck (nh-init (:connection @bot)))
-;(nh-start fuck)
-;(nh-stop fuck)
-
-;(nh-start (:nh @bot))
-;(nh-stop (:nh @bot))a
+      (log/error e "Failed to start"))))
+-
