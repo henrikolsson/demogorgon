@@ -7,7 +7,8 @@
             [tachyon.core :as irc]
             [demogorgon.twitter :as twitter]
             [clojure.java.jdbc :as sql])
-  (:require [clojure.core.async :as async :refer [close! go chan put! <!]])
+  (:require [clojure.core.async :as async :refer [close! go chan put! <!]]
+            [clojure.tools.logging :as log])
   (:use	[clojure.java.io :only (reader)]
         [demogorgon.util :only (read-lines)]
         [demogorgon.watch :only (start-watcher stop-watcher create-watcher)]
@@ -158,11 +159,11 @@
     :birthdate (if (:birthdate m) (Date/valueOf (fdate (:birthdate m))) (:birthdate m))))
 
          
-(defn insert-xlogfile-line-db [region line pos]
+(defn insert-xlogfile-line-db [db region line pos]
   (let [data (assoc (parse-line line) :region region :fpos pos)]
     (let [record (assoc data :death_uniq (.replaceAll (:death data) ", while .*$", ""))]
-      (sql/insert-records :xlogfile
-                          (map-types record)))))
+      (sql/insert! db :xlogfile
+                   (map-types record)))))
 
 (defn sanitize-nick [nick]
   (.replaceAll nick "[^\\p{Alnum}]" ""))
@@ -443,8 +444,7 @@
   (stop-watcher (:watcher nh)))
 
 (defn update-xlogfile [region position announce? irc]
-  (sql/with-connection (:db @config)
-    (sql/transaction
+  (sql/with-db-connection [db (:db @config)]
      (let [ra (RandomAccessFile.
                (str (:un-dir @config)
                     (File/separator) region (File/separator) "xlogfile")
@@ -480,11 +480,11 @@
                                      (possessive-gender (:gender data))
                                      (:points data))]
                      (announce irc out)))))
-             (insert-xlogfile-line-db region line (.getFilePointer ra))
+             (insert-xlogfile-line-db db region line (.getFilePointer ra))
              (recur (read-line-ra ra)))))
        (let [pos (.getFilePointer ra)]
          (.close ra)
-         pos)))))
+         pos))))
 
 (defn handle-livelog [region position irc]
   (let [ra (RandomAccessFile.
@@ -510,10 +510,8 @@
   (let [regions {:eu 0
                  :us 0}]
     (into regions
-          (sql/with-connection (:db @config)
-            (sql/with-query-results
-              rs
-              ["select region, max(fpos) as fpos from xlogfile group by region"]
+          (sql/with-db-connection [db (:db @config)]
+            (let [rs (sql/query db ["select region, max(fpos) as fpos from xlogfile group by region"])]
               (doall (map (fn [row]
                             [(keyword (:region row)) (:fpos row)])
                           rs)))))))
@@ -627,7 +625,7 @@
 
 
 ;; (defn handle-xlogfile-line [irc file line]  
-;;   (sql/with-connection (:db @config)
+;;   (sql/with-db-connection (:db @config)
 ;;     (sql/transaction
 ;;      (insert-xlogfile-line-db (region-from-fn file) line)))
 ;;   (let [data (assoc (parse-line line) :region (region-from-fn file))]

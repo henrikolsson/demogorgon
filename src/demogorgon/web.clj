@@ -140,11 +140,10 @@
     (map #'rs-row-to-tr-ascension rs)]])
 
 (defn ascensions []
-  (sql/with-connection (:db @config)
+  (sql/with-db-connection [db (:db @config)]
     (let [rows
           (map #(assoc %1 :conducts (parse-bitfield conducts (:conduct %1)))
-               (sql/with-query-results rs
-                 ["select * from xlogfile where death LIKE 'ascended%' order by points desc"]
+               (let [rs (sql/query ["select * from xlogfile where death LIKE 'ascended%' order by points desc"])]
                  (doall rs)))
           points-table (rs-to-table-ascension (take 10 rows))
           conducts-table (rs-to-table-ascension
@@ -157,10 +156,8 @@
        conducts-table))))
 
 (defn game [id]
-  (sql/with-connection (:db @config)
-    (sql/with-query-results
-      rs
-      ["select * from xlogfile where id = ?" id]
+  (sql/with-db-connection [db (:db @config)]
+    (let [rs (sql/query ["select * from xlogfile where id = ?" id])]
       (let [row (first rs)]
         (if (not row)
           (page-not-found)
@@ -169,34 +166,26 @@
 (defn highscores
   ([] (highscores 10))
   ([limit]
-     (sql/with-connection (:db @config)
-       (sql/with-query-results
-         rs
-         ["select * from xlogfile order by points desc limit ?" limit]
+     (sql/with-db-connection [db (:db @config)]
+       (let [rs (sql/query ["select * from xlogfile order by points desc limit ?" limit])]
          (layout
           (rs-to-table rs))))))
 
 (defn cause [cause-str]
-  (sql/with-connection (:db @config)
-    (sql/with-query-results
-      rs
-      ["select * from xlogfile where death_uniq = ? order by points desc limit 100" (url-decode cause-str)]
+  (sql/with-db-connection [db (:db @config)]
+    (let [rs (sql/query ["select * from xlogfile where death_uniq = ? order by points desc limit 100" (url-decode cause-str)])]
       (layout
        (rs-to-table rs)))))
 
 (defn last-games []
-  (sql/with-connection (:db @config)
-    (sql/with-query-results
-      rs
-      ["select * from xlogfile order by endtime desc limit ?" 25]
+  (sql/with-db-connection [db (:db @config)]
+    (let [rs (sql/query ["select * from xlogfile order by endtime desc limit ?" 25])]
       (layout
        (rs-to-table rs)))))
 
 (defn frontpage []
-  (sql/with-connection (:db @config)
-    (sql/with-query-results
-      rs
-      ["select * from xlogfile order by endtime desc limit ?" 5]
+  (sql/with-db-connection [db (:db @config)]
+    (let [rs (sql/query ["select * from xlogfile order by endtime desc limit ?" 5])]
       (layout
        [:div
         [:h2 "about"]
@@ -213,10 +202,8 @@
         (rs-to-table rs)]))))
 
 (defn user [name]
-  (sql/with-connection (:db @config)
-    (sql/with-query-results
-      rs
-      ["select count(*) as games_played, (select count(*) from xlogfile where name = ? and death LIKE 'ascended%') as ascensions from xlogfile where name = ?" name name]
+  (sql/with-db-connection [db (:db @config)]
+    (let [rs (sql/query ["select count(*) as games_played, (select count(*) from xlogfile where name = ? and death LIKE 'ascended%') as ascensions from xlogfile where name = ?" name name])]
       (let [row (first rs)]
         (if (not row)
           (page-not-found)
@@ -229,17 +216,13 @@
             [:a {:href (str "/user/" name "/ttyrecs/")} "ttyrecs"]
             [:br]
             [:br]
-            (sql/with-query-results
-              rs2
-              ["select * from xlogfile where name = ? order by endtime desc limit 100" name]
+            (let [rs2 (sql/query ["select * from xlogfile where name = ? order by endtime desc limit 100" name])]
               (doall rs2)
               (rs-to-table rs2))]))))))
 
 (defn users []
-  (sql/with-connection (:db @config)
-    (sql/with-query-results
-      rs
-      ["select distinct name from xlogfile order by name"]
+  (sql/with-db-connection [db (:db @config)]
+    (let [rs (sql/query ["select distinct name from xlogfile order by name"])]
       (layout
        [:div
         (map (fn [row]
@@ -248,10 +231,8 @@
              rs)]))))
 
 (defn causes []
-  (sql/with-connection (:db @config)
-    (sql/with-query-results
-      rs
-      ["select distinct death_uniq as death, count(*) as count from xlogfile group by death_uniq order by count desc"]
+  (sql/with-db-connection [db (:db @config)]
+    (let [rs (sql/query ["select distinct death_uniq as death, count(*) as count from xlogfile group by death_uniq order by count desc"])]
       (layout
        (map (fn [row]
               [:div 
