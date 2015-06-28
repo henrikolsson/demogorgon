@@ -77,7 +77,6 @@
                     (if (.exists (File. (str file-base ".txt")))
                       ".txt"
                       nil))]
-    (log/info (str file-base))
     (if extension
       [:a {:href (str base extension)} (:id row)]
       (:id row))))
@@ -138,105 +137,96 @@
     (map #'rs-row-to-tr-ascension rs)]])
 
 (defn ascensions []
-  (sql/with-db-connection [db (:db @config)]
-    (let [rows
-          (map #(assoc %1 :conducts (parse-bitfield conducts (:conduct %1)))
-               (let [rs (sql/query ["select * from xlogfile where death LIKE 'ascended%' order by points desc"])]
-                 (doall rs)))
-          points-table (rs-to-table-ascension (take 10 rows))
-          conducts-table (rs-to-table-ascension
-                          (take 10
-                                (sort-by #(* (count (:conducts %1)) -1) rows)))]
-      (layout
-       [:h2 "by points"]
-       points-table
-       [:h2 "by conducts"]
-       conducts-table))))
+  (let [rows
+        (map #(assoc %1 :conducts (parse-bitfield conducts (:conduct %1)))
+             (let [rs (sql/query (:db @config) ["select * from xlogfile where death LIKE 'ascended%' order by points desc"])]
+               (doall rs)))
+        points-table (rs-to-table-ascension (take 10 rows))
+        conducts-table (rs-to-table-ascension
+                        (take 10
+                              (sort-by #(* (count (:conducts %1)) -1) rows)))]
+    (layout
+     [:h2 "by points"]
+     points-table
+     [:h2 "by conducts"]
+     conducts-table)))
 
 (defn game [id]
-  (sql/with-db-connection [db (:db @config)]
-    (let [rs (sql/query ["select * from xlogfile where id = ?" id])]
-      (let [row (first rs)]
-        (if (not row)
-          (page-not-found)
-          (layout (make-dump-link row)))))))
+  (let [rs (sql/query (:db @config) ["select * from xlogfile where id = ?" id])]
+    (let [row (first rs)]
+      (if (not row)
+        (page-not-found)
+        (layout (make-dump-link row))))))
 
 (defn highscores
   ([] (highscores 10))
   ([limit]
-     (sql/with-db-connection [db (:db @config)]
-       (let [rs (sql/query ["select * from xlogfile order by points desc limit ?" limit])]
-         (layout
-          (rs-to-table rs))))))
+   (let [rs (sql/query (:db @config) ["select * from xlogfile order by points desc limit ?" limit])]
+     (layout
+      (rs-to-table rs)))))
 
 (defn cause [cause-str]
-  (sql/with-db-connection [db (:db @config)]
-    (let [rs (sql/query ["select * from xlogfile where death_uniq = ? order by points desc limit 100" (url-decode cause-str)])]
-      (layout
-       (rs-to-table rs)))))
+  (let [rs (sql/query (:db @config) ["select * from xlogfile where death_uniq = ? order by points desc limit 100" (url-decode cause-str)])]
+    (layout
+     (rs-to-table rs))))
 
 (defn last-games []
-  (sql/with-db-connection [db (:db @config)]
-    (let [rs (sql/query ["select * from xlogfile order by endtime desc limit ?" 25])]
-      (layout
-       (rs-to-table rs)))))
+  (let [rs (sql/query (:db @config) ["select * from xlogfile order by endtime desc limit ?" 25])]
+    (layout
+     (rs-to-table rs))))
 
 (defn frontpage []
-  (sql/with-db-connection [db (:db @config)]
-    (let [rs (sql/query ["select * from xlogfile order by endtime desc limit ?" 5])]
-      (layout
-       [:div
-        [:h2 "about"]
-        [:p
-         "un.nethack.nu is a public server for " [:a {:href "http://sourceforge.net/apps/trac/unnethack/"} "UnNetHack"]
-         ". There's a " [:a {:href "telnet://eu.un.nethack.nu"} "european server (telnet)"] " and an "
-         [:span {:style "text-decoration: line-through;"} "american server"] "."]
-        
-        [:h2 "links"]
-        [:ul
-         [:li [:a {:href "/default-unnethackrc"} "default rc-file"]]
-         [:li [:a {:href "/logs"} "logfiles"]]]
-        [:h2 "last 5 deaths"]
-        (rs-to-table rs)]))))
+  (let [rs (sql/query (:db @config) ["select * from xlogfile order by endtime desc limit ?" 5])]
+    (layout
+     [:div 
+      [:h2 "about"]
+      [:p
+       "un.nethack.nu is a public server for " [:a {:href "http://sourceforge.net/apps/trac/unnethack/"} "UnNetHack"]
+       ". There's a " [:a {:href "telnet://eu.un.nethack.nu"} "european server (telnet)"] " and an "
+       [:span {:style "text-decoration: line-through;"} "american server"] "."]
+      
+      [:h2 "links"]
+      [:ul
+       [:li [:a {:href "/default-unnethackrc"} "default rc-file"]]
+       [:li [:a {:href "/logs"} "logfiles"]]]
+      [:h2 "last 5 deaths"]
+      (rs-to-table rs)])))
 
 (defn user [name]
-  (sql/with-db-connection [db (:db @config)]
-    (let [rs (sql/query ["select count(*) as games_played, (select count(*) from xlogfile where name = ? and death LIKE 'ascended%') as ascensions from xlogfile where name = ?" name name])]
-      (let [row (first rs)]
-        (if (not row)
-          (page-not-found)
-          (layout
-           [:div
-            [:h2 name]
-            [:p (:games_played row) " games played, " (:ascensions row) " ascensions."]
-            [:a {:href (str "/user/" name "/dumps/")} "dumps"]
-            [:br]
-            [:a {:href (str "/user/" name "/ttyrecs/")} "ttyrecs"]
-            [:br]
-            [:br]
-            (let [rs2 (sql/query ["select * from xlogfile where name = ? order by endtime desc limit 100" name])]
-              (doall rs2)
-              (rs-to-table rs2))]))))))
+  (let [rs (sql/query (:db @config) ["select count(*) as games_played, (select count(*) from xlogfile where name = ? and death LIKE 'ascended%') as ascensions from xlogfile where name = ?" name name])]
+    (let [row (first rs)]
+      (if (not row)
+        (page-not-found)
+        (layout
+         [:div
+          [:h2 name]
+          [:p (:games_played row) " games played, " (:ascensions row) " ascensions."]
+          [:a {:href (str "/user/" name "/dumps/")} "dumps"]
+          [:br]
+          [:a {:href (str "/user/" name "/ttyrecs/")} "ttyrecs"]
+          [:br]
+          [:br]
+          (let [rs2 (sql/query (:db @config) ["select * from xlogfile where name = ? order by endtime desc limit 100" name])]
+            (doall rs2)
+            (rs-to-table rs2))])))))
 
 (defn users []
-  (sql/with-db-connection [db (:db @config)]
-    (let [rs (sql/query ["select distinct name from xlogfile order by name"])]
-      (layout
-       [:div
-        (map (fn [row]
-               [:div [:a {:href (str "/user/" (:name row))} (:name row)]
-                [:br]])
-             rs)]))))
+  (let [rs (sql/query (:db @config) ["select distinct name from xlogfile order by name"])]
+    (layout
+     [:div
+      (map (fn [row]
+             [:div [:a {:href (str "/user/" (:name row))} (:name row)]
+              [:br]])
+           rs)])))
 
 (defn causes []
-  (sql/with-db-connection [db (:db @config)]
-    (let [rs (sql/query ["select distinct death_uniq as death, count(*) as count from xlogfile group by death_uniq order by count desc"])]
-      (layout
-       (map (fn [row]
-              [:div 
-               (:count row) " " [:a {:href (str "/cause/" (url-encode (:death row)))} (:death row)]
-               [:br]])
-            rs)))))
+  (let [rs (sql/query (:db @config) ["select distinct death_uniq as death, count(*) as count from xlogfile group by death_uniq order by count desc"])]
+    (layout
+     (map (fn [row]
+            [:div 
+             (:count row) " " [:a {:href (str "/cause/" (url-encode (:death row)))} (:death row)]
+             [:br]])
+          rs))))
 
 (defroutes main-routes
   (GET "/last-games" [] (last-games))

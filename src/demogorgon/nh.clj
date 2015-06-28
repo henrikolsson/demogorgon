@@ -218,20 +218,10 @@
       (str "No dumpfile for " nick))))
 
 (defn add-scum [player]
-  (log/info (str "adding scum " player))
-  (dosync
-   (alter scummers assoc player (+ (System/currentTimeMillis) 30000))))
+  (log/info (str "adding scum " player)))
 
-(defn is-scum [player]
+(defn is-scum [score]
   nil)
-  ;; (dosync
-  ;;  (if (contains? @scummers player)
-  ;;    (if (< (get @scummers player) (System/currentTimeMillis))
-  ;;      (do
-  ;;        (log/info (str "removing scum " player))
-  ;;        (alter scummers dissoc player)
-  ;;        false)
-  ;;      true))))
 
 (defn online-players-hook [irc object match]
   (let [players (get-online-players)]
@@ -291,52 +281,13 @@
     (.substring str 0 max)
     str))
 
-        ;; (try 
-        ;;  (twitter/tweet final-tweet)
-        ;;  (catch Exception e
-        ;;    (log/error "tweet failed" e)))))))
-        ;;     tweet-prefix (truncate (format "%s (%s %s %s %s), %s points, %s turns, %s"
-        ;;                                    (:name data)
-        ;;                                    (:role data)
-        ;;                                    (:race data)
-        ;;                                    (:gender data)
-        ;;                                    (:align data)
-        ;;                                    (:points data)
-        ;;                                    (:turns data)
-        ;;                                    (:death data))
-        ;;                            120)
-        ;;     url (twitter/shorten-url (format "http://un.nethack.nu/user/%s/dumps/%s.%s.txt.html"
-        ;;                                      (:name data)
-        ;;                                      (:name data)
-        ;;                                      (:endtime data)))
-        ;;     final-tweet (str tweet-prefix ", " url)]
 
 (defn make-game-action-out [data]
   (condp = (:game_action data)
-    "started" (if (:character data)
-                (format "%s enters the dungeon as a%s."
-                        (:player data)
-                        (:character data))
-                (format "%s enters the dungeon as a%s %s %s."
-                        (:player data)
-                        (:alignment data)
-                        (race (:race data))
-                        (role (:role data))))
-    "resumed" (if (:character data)
-                (format "%s the%s resumes the adventure."
-                        (:player data)
-                        (:character data)
-                (format "%s the %s %s resumes the adventure."
-                        (:player data)
-                        (race (:race data))
-                        (role (:role data)))))
-    
-    "saved" (format "%s is taking a break from the hard life as an adventurer."
-                    (:player data))
-
     "panicked" (format "The dungeon of %s collapsed after %s turns!"
                        (:player data)
-                       (:turns data))))
+                       (:turns data))
+    nil))
 
 (defn bitfield-to-int [bitfield]
   (if (string? bitfield)
@@ -416,6 +367,10 @@
                               (first (parse-bitfield achievements achieve-diff))
                               (:turns data))))
 
+    :boh_explosion (format "%s's bag of holding exploded from a %s!"
+                           (:player data)
+                           (:boh_explosion data))
+
     (str "unhandled line: " data)))
 
 ; read a line from a RandomAccessFile, in utf-8
@@ -461,7 +416,7 @@
                           (or (= (:death data) "quit")
                               (= (:death data) "escaped")))
                    (add-scum (:name data)))
-                 (if (not (is-scum (:name data)))
+                 (if (not (is-scum (:points data)))
                    (let [out (format "[%s] %s, the %s %s %s %s%s %s score was %s."
                                      region
                                      (:name data)
@@ -570,83 +525,3 @@
 (defn nh-start [nh]
   (nh-init-db)
   (nh-run nh))
-
-
-;; demogorgon.core.bot
-
-;; (def asdf (nh-init nil))
-
-;; (def chanx (nh-run asdf))
-
-
-;; (nh-stop asdf)
-;; (close! chanx)
-
-
-;(swap! config merge {:un-dir "/home/henrik/tmp/un"})
-
-
-
-
-;; (defn run-watcher [watcher]
-;;   (with-local-vars [files {"livelog"   {:length (.length (File. (str (:un-dir @config) "livelog")))
-;;                                         :callback #'handle-livelog-line}
-;;                            "livelog-us"   {:length (.length (File. (str (:un-dir @config) "livelog-us")))
-;;                                         :callback #'handle-livelog-line}                           
-;;                            "xlogfile"  {:length (.length (File. (str (:un-dir @config) "xlogfile")))
-;;                                         :callback #'handle-xlogfile-line}
-;;                            "xlogfile-us"  {:length (.length (File. (str (:un-dir @config) "xlogfile-us")))
-;;                                         :callback #'handle-xlogfile-line}}]
-;;     (while
-;;      (not (Thread/interrupted))
-;;      (log/debug (str "Waiting for events.."))
-;;      (let [key (.take (:watch-service @watcher))]
-;;        (log/debug "Got events")
-;;        (doseq [event (.pollEvents key)]
-;;          (let [fn (.toString (.context event))
-;;                file (get (var-get files) fn)]
-;;            (if file
-;;              (do
-;;                (log/debug (str "file modified: " fn))
-;;                (let [ra (RandomAccessFile. (str (:un-dir @config) fn) "r")]
-;;                  (.seek ra (:length file))
-;;                  (loop [line (read-line-ra ra)]
-;;                    (if line
-;;                      (do 
-;;                        ((:callback file) (:irc @watcher) fn line)
-;;                        (var-set files (assoc (var-get files)
-;;                                         fn
-;;                                         (assoc (get (var-get files) fn) :length (.getFilePointer ra))))
-;;                        (recur (read-line-ra ra)))))
-;;                  (.close ra)))))
-;         (.reset key))))))
-
-
-;; (defn handle-xlogfile-line [irc file line]  
-;;   (sql/with-db-connection (:db @config)
-;;     (sql/transaction
-;;      (insert-xlogfile-line-db (region-from-fn file) line)))
-;;   (let [data (assoc (parse-line line) :region (region-from-fn file))]
-;;     (if (and (or (< (Integer/parseInt (:turns data)) 10)
-;;                  (< (Integer/parseInt (:points data)) 10))
-;;              (or (= (:death data) "quit")
-;;                  (= (:death data) "escaped")))
-;;       (add-scum (:name data)))
-;;     (if (not (is-scum (:name data)))
-;;       (let [out (format "[%s] %s, the %s %s %s %s%s %s score was %s."
-;;                         (region-from-fn file)
-;;                         (:name data)
-;;                         (alignment (:align data))
-;;                         (gender (:gender data))
-;;                         (race (:race data))
-;;                         (role (:role data))
-;;                         (if (.startsWith (:death data) "ascended")
-;;                           (str " " (:death data) " to demigod-hood.")
-;;                           (format ", left this world %s on level %s, %s."
-;;                                   (zone (:deathdname data))
-;;                                   (:deathlev data)
-;;                                   (:death data)))
-;;                         (possessive-gender (:gender data))
-;;                         (:points data))]
-;;         (announce irc out)))))
-
