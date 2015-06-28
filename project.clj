@@ -15,7 +15,8 @@
                  [org.clojure/data.json "0.2.5"]
                  [postgresql/postgresql "9.3-1102.jdbc41"]
                  [org.clojure/tools.nrepl "0.2.7"]
-                 [org.clojure/tools.logging "0.3.1"]]
+                 [org.clojure/tools.logging "0.3.1"]
+                 [com.mchange/c3p0 "0.9.2.1"]]
   :profiles
   {:start
    {:repl-options 
