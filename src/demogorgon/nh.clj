@@ -4,7 +4,6 @@
            [java.sql Date Timestamp])
   (:require [clj-stacktrace.repl :as stacktrace]
             [tachyon.core :as irc]
-            [demogorgon.twitter :as twitter]
             [clojure.java.jdbc :as sql])
   (:require [clojure.core.async :as async :refer [close! go chan put! <!]]
             [clojure.tools.logging :as log])
