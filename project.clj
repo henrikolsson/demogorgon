@@ -9,7 +9,7 @@
                  [org.slf4j/slf4j-log4j12 "1.7.10"]
                  [org.slf4j/slf4j-api "1.7.10"]
                  [clj-stacktrace "0.2.8"]
-                 [tachyon "0.0.3-SNAPSHOT"]
+                 [tachyon "1.0.0-SNAPSHOT"]
                  [org.twitter4j/twitter4j-core "4.0.2"]
                  [org.xerial/sqlite-jdbc "3.8.7"]
                  [org.clojure/data.json "0.2.5"]

@@ -212,6 +212,7 @@
                               (:nick (:prefix object))
                               (second match)))
         url (get-last-dump-url nick)]
+    (log/debug object)
     (if url
       url
       (str "No dumpfile for " nick))))
@@ -461,12 +462,12 @@
 (defn get-xlogfile-positions []
   (let [regions {:eu 0
                  :us 0}]
+    (log/debug @config)
     (into regions
-          (sql/with-db-connection [db (:db @config)]
-            (let [rs (sql/query db ["select region, max(fpos) as fpos from xlogfile group by region"])]
-              (doall (map (fn [row]
-                            [(keyword (:region row)) (:fpos row)])
-                          rs)))))))
+          (let [rs (sql/query (:db @config) ["select region, max(fpos) as fpos from xlogfile group by region"])]
+            (doall (map (fn [row]
+                          [(keyword (:region row)) (:fpos row)])
+                        rs))))))
 
 (defn nh-init-db []
   (let [regions (get-xlogfile-positions)]

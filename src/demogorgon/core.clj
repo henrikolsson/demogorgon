@@ -2,7 +2,6 @@
   (:import [java.io File]
            [java.util Random])
   (:require [tachyon.core :as irc]
-            [tachyon.hooks :as irc-hooks]
             [clj-stacktrace.repl :as stacktrace]
             [clojure.walk]
             [clojure.tools.logging :as log])
@@ -10,12 +9,13 @@
         [demogorgon.unicode :only (unicode-hook)]
         [demogorgon.web :only (start-web stop-web)]
         [demogorgon.nh :only (online-players-hook last-dump-hook whereis-hook nh-start nh-run nh-init nh-stop)]
-        [clojure.tools.nrepl.server :only (start-server stop-server)])
+        [clojure.tools.nrepl.server :only (start-server stop-server)]
+        [clojure.core.async :refer [chan close! <! >! pub sub unsub go go-loop timeout]])
   (:gen-class))
 
 (defonce bot (atom nil))
 
-(defn get-memory-info []
+(defn get-memory-info [& args]
   (let [runtime (Runtime/getRuntime)
         total (int (/ (.totalMemory runtime) 1048576))
         free (int (/ (.freeMemory runtime) 1048576))
@@ -39,27 +39,48 @@
   (let [irc (irc/create (:irc @config))]
     {:connection irc
      :nh (nh-init irc)
-     :web (ref nil)}))
+     :web (start-web)
+     :repl (start-server :port 7888)}))
+
+(defn get-reply-target [data]
+  (if (.startsWith (:target data) "#")
+    (:target data)
+    (get-in data [:prefix :nick])))
+
+(def msg-handlers [[[#"^\.last ?(.*)?" #"^\.lastdump ?(.*)?"] #'last-dump-hook]
+               [[#"^\.rng ?(.*)?" #"^\.rand ?(.*)?"] #'rand-hook]
+               [[#"^\.cur" #"^\.online"] #'online-players-hook]
+               [[#"^\.last ?(.*)?" #"^\.lastdump ?(.*)?" #"^\.lasturl ?(.*)?"] #'last-dump-hook]
+               [[#"^\.debug"] #'get-memory-info]])
+
+(defn handle-privmsg [con data]
+  (let [target (get-reply-target data)
+        message (:msg data)
+        words (seq (.split message " "))
+        handler (first (filter
+                        (fn [handler]
+                          (some (fn [re]
+                                  (re-find re message)) (first handler)))
+                        msg-handlers))]
+    (if handler
+      (let [match (some (fn [re]
+                          (re-find re message)) (first handler))]
+        (irc/send-message con target ((second handler) con data match))))))
 
 (defn start [bot]
-  (let [server (start-server :port 7888)]
-    (nh-start (:nh bot))
-    (log/info (str "Server is: " server))
-    (irc-hooks/add-message-hook (:connection bot) #"^\.rng (.+)" #'rand-hook)
-    (irc-hooks/add-message-hook (:connection bot) #"^\.rnd (.+)" #'rand-hook)
-    (irc-hooks/add-message-hook (:connection bot) #"^\.random (.+)" #'rand-hook)
-    (irc-hooks/add-message-hook (:connection bot) ".debug" (fn [& rest] (get-memory-info)))
-    (irc-hooks/add-message-hook (:connection bot) ".gc" (fn [& rest] (.gc (Runtime/getRuntime))))
-    (irc-hooks/add-message-hook (:connection bot) #"^\.u ?(.*)?" #'unicode-hook)
-    (irc-hooks/add-message-hook (:connection bot) ".cur" #'online-players-hook)
-    (irc-hooks/add-message-hook (:connection bot) ".online" #'online-players-hook)
-    (irc-hooks/add-message-hook (:connection bot) #"^\.last ?(.*)?" #'last-dump-hook)
-    (irc-hooks/add-message-hook (:connection bot) #"^\.lastdump ?(.*)?" #'last-dump-hook)
-    (irc-hooks/add-message-hook (:connection bot) #"^\.lasturl ?(.*)?" #'last-dump-hook)
-    (irc-hooks/add-message-hook (:connection bot) #"^\.whereis ?(.*)?" #'whereis-hook)
-    (irc/connect (:connection bot))
-    (dosync
-     (ref-set (:web bot) (start-web)))))
+  (let [publication (irc/get-publication (:connection bot))]
+    (let [subscriber (chan)]
+      (sub publication :privmsg subscriber)
+      (go-loop []
+        (let [val (<! subscriber)]
+          (if val
+            (do (try
+                  (handle-privmsg (:connection bot) val)
+                  (catch Exception e
+                    (log/error e "error in listener")))
+                (recur))))))
+    (log/info "Connecting to irc...")
+    (irc/connect (:connection bot))))
 
 (defn -main[& args]
   (try
@@ -77,4 +98,10 @@
     (start @bot)
     (catch Exception e
       (log/error e "Failed to start"))))
--
+
+(defn shutdown [bot]
+  (stop-server (:repl bot))  
+  (stop-web (:web bot))
+  (nh-stop (:nh bot))
+  (irc/shutdown (:connection bot)))
+
