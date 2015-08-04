@@ -57,6 +57,7 @@
   (str "version " (or-if-empty v/version "unknown") " (" v/gitref ")"))
 
 (def msg-handlers [[[#"^\.last ?(.*)?" #"^\.lastdump ?(.*)?"] #'last-dump-hook]
+                   [[#"^\.whereis ?(.*)?"] #'whereis-hook]
                [[#"^\.rng ?(.*)?" #"^\.rand ?(.*)?"] #'rand-hook]
                [[#"^\.cur" #"^\.online"] #'online-players-hook]
                [[#"^\.last ?(.*)?" #"^\.lastdump ?(.*)?" #"^\.lasturl ?(.*)?"] #'last-dump-hook]

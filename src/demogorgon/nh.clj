@@ -174,23 +174,25 @@
 
 (defn get-online-players []
   (let [dir (File. "/opt/nhmaster/var/unnethack/eu/")
-        filter (proxy [FilenameFilter] []
+        f (proxy [FilenameFilter] []
                    (accept [dir name]
                      (.endsWith name ".whereis")))
-        files (seq (.list dir filter))
-        parsed (map #(parse-line (first (line-seq (reader %1)))) files)]
-    (filter #(not (= (get %1 :playing) "1")) parsed)))
+        files (seq (.list dir f))
+        parsed (map #(parse-line (first (line-seq (reader (str "/opt/nhmaster/var/unnethack/eu/" %1))))) files)]
+    (filter #(= (get %1 :playing) "1") parsed)))
       
 (defn format-time [secs]
-  (if (< secs 60)
-    (str secs "s")
-    (let [minutes (.intValue (Math/floor (/ secs 60)))
-          secs (mod secs 60)]
-      (if (< minutes 60)
-        (str minutes "m " secs "s")
-        (let [hours (.intValue (Math/floor (/ minutes 60)))
-              minutes (mod minutes 60)]
-          (str hours "h " minutes "m " secs "s"))))))
+  (if (not secs)
+    "?"
+    (if (< secs 60)
+      (str secs "s")
+      (let [minutes (.intValue (Math/floor (/ secs 60)))
+            secs (mod secs 60)]
+        (if (< minutes 60)
+          (str minutes "m " secs "s")
+          (let [hours (.intValue (Math/floor (/ minutes 60)))
+                minutes (mod minutes 60)]
+            (str hours "h " minutes "m " secs "s")))))))
 
 (defn get-last-dump-url [nick]
   (let [exts [".txt.html" ".txt"]
@@ -224,7 +226,7 @@
     (if (empty? players)
       "the world of unnethack is currently empty.. why don't you give it a try?"
       (map (fn [data]
-             (format "%s the %s %s %s %s is currently at level %s in %s at turn %s%s (idle for %s)"
+             (format "%s the %s %s %s %s is currently at level %s in %s at turn %s%s"
                      (:player data)
                      (alignment (:align data))
                      (gender (:gender data))
@@ -235,8 +237,7 @@
                      (:turns data)
                      (if (= (:amulet data) "1")
                        " (carrying the amulet)"
-                       "")
-                     (format-time (:idle data))))
+                       "")))
            players))))
 
 (defn format-turns [turns]
