@@ -1,7 +1,9 @@
 (ns demogorgon.nh
   (:import [java.io File FilenameFilter RandomAccessFile ByteArrayOutputStream]
            [java.nio.file FileSystems StandardWatchEventKinds]
-           [java.sql Date Timestamp])
+           [java.sql Date Timestamp]
+           [java.text SimpleDateFormat]
+           [java.util TimeZone])
   (:require [clj-stacktrace.repl :as stacktrace]
             [tachyon.core :as irc]
             [clojure.java.jdbc :as sql])
@@ -127,6 +129,12 @@
                                 ""))) props)]
     (zipmap keys values)))
 
+(defn parse-date [d]
+  (let [sdf (SimpleDateFormat. "yyyyMMdd")]
+    (log/debug (str "date: " d))
+    (.setTimeZone sdf (TimeZone/getTimeZone "UTC"))
+    (.parse sdf d)))
+
 (defn fdate [s]
   (str (.substring s 0 4)
        "-"
@@ -155,7 +163,6 @@
     :deathdate (if (:deathdate m) (Date/valueOf (fdate (:deathdate m))) (:deathdate m))
     :birthdate (if (:birthdate m) (Date/valueOf (fdate (:birthdate m))) (:birthdate m))))
 
-         
 (defn insert-xlogfile-line-db [db region line pos]
   (let [data (assoc (parse-line line) :region region :fpos pos)]
     (let [record (assoc data :death_uniq (.replaceAll (:death data) ", while .*$", ""))]
@@ -166,25 +173,13 @@
   (.replaceAll nick "[^\\p{Alnum}]" ""))
 
 (defn get-online-players []
-  (let [dir (File. "/opt/nethack.nu/dgldir/inprogress/")
+  (let [dir (File. "/opt/nhmaster/var/unnethack/eu/")
         filter (proxy [FilenameFilter] []
                    (accept [dir name]
-                           (and (.endsWith name ".ttyrec")
-                                (> (.indexOf name ":") 0))))
-        files (seq (.list dir filter))]
-    (map (fn [file]
-             (let [tokens (.split file ":" 2)
-                   player (aget tokens 0)
-                   date (aget tokens 1)
-                   ttyrec (File. (str "/opt/nethack.nu/dgldir/ttyrec/" player "/" date))
-                   idle (int (/
-                              (int (- (System/currentTimeMillis) (.lastModified ttyrec)))
-                              1000))
-                   whereis (File. (str "/opt/nethack.nu/var/unnethack/" player ".whereis"))]
-               (with-open [rdr (reader whereis)]
-                 (let [data (parse-line (first (line-seq rdr)))]
-                   (assoc data :idle idle)))))
-           files)))
+                     (.endsWith name ".whereis")))
+        files (seq (.list dir filter))
+        parsed (map #(parse-line (first (line-seq (reader %1)))) files)]
+    (filter #(not (= (get %1 :playing) "1")) parsed)))
       
 (defn format-time [secs]
   (if (< secs 60)
@@ -220,8 +215,9 @@
 (defn add-scum [player]
   (log/info (str "adding scum " player)))
 
-(defn is-scum [score]
-  nil)
+(defn is-scum [points]
+  (let [p (Integer/parseInt points)]
+    (< p 100)))
 
 (defn online-players-hook [irc object match]
   (let [players (get-online-players)]
@@ -252,7 +248,7 @@
   (let [player (sanitize-nick (if (= (second match) "")
                               (:nick (:prefix object))
                               (second match)))
-        filename (str "/opt/nethack.nu/var/unnethack/" player ".whereis")]
+        filename (str "/opt/nhmaster/var/unnethack/eu/" player ".whereis")]
     (if (not (.exists (File. filename)))
       (str player " doesn't seem to have played here yet.")
       (let [whereis (File. filename)]
@@ -525,3 +521,4 @@
 (defn nh-start [nh]
   (nh-init-db)
   (nh-run nh))
+

@@ -64,8 +64,12 @@
                         msg-handlers))]
     (if handler
       (let [match (some (fn [re]
-                          (re-find re message)) (first handler))]
-        (irc/send-message con target ((second handler) con data match))))))
+                          (re-find re message)) (first handler))
+            result ((second handler) con data match)]
+        (if (seq? result)
+          (doseq [l result]
+            (irc/send-message con target l))
+          (irc/send-message con target result))))))
 
 (defn start [bot]
   (let [publication (irc/get-publication (:connection bot))]
@@ -94,7 +98,8 @@
         (do
           (log/info "Found config file")
           (read-config config-file))))
-    (swap! bot (fn [x] (create)))
+    (reset! bot (create))
+    (nh-start (:nh @bot))
     (start @bot)
     (catch Exception e
       (log/error e "Failed to start"))))
@@ -104,4 +109,3 @@
   (stop-web (:web bot))
   (nh-stop (:nh bot))
   (irc/shutdown (:connection bot)))
-

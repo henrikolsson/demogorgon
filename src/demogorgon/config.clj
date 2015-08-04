@@ -12,10 +12,11 @@
                     :realname "devogorgon"
                     :servers [["irc.du.se" 6667]]
                     :channels ["#origo"]}
-              :db {:classname "org.sqlite.JDBC"
-                   :subprotocol "sqlite"
-                   :subname "/tmp/nh.db"
-                   :create true}}))
+              :db {:classname "org.postgresql.Driver"
+                   :subprotocol "postgresql"
+                   :subname "//localhost:5432/nhdb"
+                   :user "nh"
+                   :password "nh"}}))
 
 (defn read-config [f]
   (swap! config merge

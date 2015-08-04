@@ -81,8 +81,6 @@
       [:a {:href (str base extension)} (:id row)]
       (:id row))))
 
-;;[:td [:a {:href (str "/game/" (:id row))} (:id row)]]
-
 (defn pretty-date [date]
   (let [date (str date)]
     (if (= (count date) 8)

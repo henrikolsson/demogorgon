@@ -20,10 +20,9 @@
   :profiles
   {:start
    {:repl-options 
-    {:init-ns demogorgon.core
-     :init (demogorgon.core/-main)}}}
+    {:init-ns demogorgon.core}}}
   :plugins [[lein-tar "3.2.0"]]
-  :tar {:uberjar true} 
+  :tar {:uberjar true}
   :jvm-opts ["-Xmx128m"]
   :main demogorgon.core)
 
