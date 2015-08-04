@@ -18,7 +18,8 @@
                  [org.clojure/tools.logging "0.3.1"]
                  [com.mchange/c3p0 "0.9.2.1"]]
   :profiles
-  {:start
+  {:uberjar {:aot :all}
+   :start
    {:repl-options 
     {:init-ns demogorgon.core}}}
   :plugins [[lein-tar "3.2.0"]
