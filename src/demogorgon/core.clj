@@ -53,8 +53,14 @@
     else
     obj))
 
-(defn get-version [& args]
+(defn get-bot-version [& args]
   (str "version " (or-if-empty v/version "unknown") " (" v/gitref ")"))
+
+(defn get-nh-version [& args]
+  (let [v (slurp "/tmp/version.txt")]
+    (if (> (count v) 100)
+      "unknown"
+      v)))
 
 (def msg-handlers [[[#"^\.last ?(.*)?" #"^\.lastdump ?(.*)?"] #'last-dump-hook]
                    [[#"^\.whereis ?(.*)?"] #'whereis-hook]
@@ -62,7 +68,8 @@
                [[#"^\.cur" #"^\.online"] #'online-players-hook]
                [[#"^\.last ?(.*)?" #"^\.lastdump ?(.*)?" #"^\.lasturl ?(.*)?"] #'last-dump-hook]
                [[#"^\.debug"] #'get-memory-info]
-               [[#"^\.version"] #'get-version]])
+               [[#"^\.bot"] #'get-bot-version]
+               [[#"^\.version"] #'get-nh-version]])
 
 (defn handle-privmsg [con data]
   (let [target (get-reply-target data)
@@ -120,5 +127,3 @@
   (stop-web (:web bot))
   (nh-stop (:nh bot))
   (irc/shutdown (:connection bot)))
-
-
