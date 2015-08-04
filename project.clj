@@ -21,7 +21,8 @@
   {:start
    {:repl-options 
     {:init-ns demogorgon.core}}}
-  :plugins [[lein-tar "3.2.0"]]
+  :plugins [[lein-tar "3.2.0"]
+            [org.clojars.cvillecsteele/lein-git-version "1.0.3"]]
   :tar {:uberjar true}
   :jvm-opts ["-Xmx128m"]
   :main demogorgon.core)

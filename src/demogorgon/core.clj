@@ -4,7 +4,8 @@
   (:require [tachyon.core :as irc]
             [clj-stacktrace.repl :as stacktrace]
             [clojure.walk]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :as log]
+            [demogorgon.version :as v])
   (:use [demogorgon.config]
         [demogorgon.unicode :only (unicode-hook)]
         [demogorgon.web :only (start-web stop-web)]
@@ -47,11 +48,20 @@
     (:target data)
     (get-in data [:prefix :nick])))
 
+(defn or-if-empty [obj else]
+  (if (empty? obj)
+    else
+    obj))
+
+(defn get-version [& args]
+  (str "version " (or-if-empty v/version "unknown") " (" v/gitref ")"))
+
 (def msg-handlers [[[#"^\.last ?(.*)?" #"^\.lastdump ?(.*)?"] #'last-dump-hook]
                [[#"^\.rng ?(.*)?" #"^\.rand ?(.*)?"] #'rand-hook]
                [[#"^\.cur" #"^\.online"] #'online-players-hook]
                [[#"^\.last ?(.*)?" #"^\.lastdump ?(.*)?" #"^\.lasturl ?(.*)?"] #'last-dump-hook]
-               [[#"^\.debug"] #'get-memory-info]])
+               [[#"^\.debug"] #'get-memory-info]
+               [[#"^\.version"] #'get-version]])
 
 (defn handle-privmsg [con data]
   (let [target (get-reply-target data)
@@ -109,3 +119,5 @@
   (stop-web (:web bot))
   (nh-stop (:nh bot))
   (irc/shutdown (:connection bot)))
+
+

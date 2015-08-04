@@ -8,3 +8,4 @@ demogorgon.log
 /target/
 .lein-failures
 .nrepl-port
+src/demogorgon/version.clj
