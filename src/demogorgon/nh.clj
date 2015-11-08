@@ -198,10 +198,10 @@
   (let [exts [".txt.html" ".txt"]
         file (first
               (filter #(.exists %)
-                      (map #(File. (str "/srv/un.nethack.nu/users/" nick "/dumps/" nick ".last" %)) exts)))]
+                      (map #(File. (str "/srv/un.nethack.nu/users/" nick "/dumps/eu/" nick ".last" %)) exts)))]
     (if file
       (let [fp (.getCanonicalPath file)]
-        (str "http://un.nethack.nu/user/" nick "/dumps" (.substring fp (.lastIndexOf fp "/"))))
+        (str "http://un.nethack.nu/user/" nick "/dumps/eu" (.substring fp (.lastIndexOf fp "/"))))
       nil)))
         
 (defn last-dump-hook [irc object match]
