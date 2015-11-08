@@ -16,7 +16,8 @@
                  [postgresql/postgresql "9.3-1102.jdbc41"]
                  [org.clojure/tools.nrepl "0.2.7"]
                  [org.clojure/tools.logging "0.3.1"]
-                 [com.mchange/c3p0 "0.9.2.1"]]
+                 [com.mchange/c3p0 "0.9.2.1"]
+                 [org.flywaydb/flyway-core "3.0"]]
   :profiles
   {:uberjar {:aot :all}
    :start

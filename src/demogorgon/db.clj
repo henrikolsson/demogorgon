@@ -1,5 +1,6 @@
 (ns demogorgon.db
-  (:import com.mchange.v2.c3p0.ComboPooledDataSource)
+  (:import [com.mchange.v2.c3p0 ComboPooledDataSource]
+           [org.flywaydb.core Flyway])
   (:use [demogorgon.config])
   (:require [clojure.java.jdbc :as sql]))
 
@@ -15,6 +16,13 @@
         {:datasource cpds}))
 
 (def pooled-db (delay (pool (:db @config))))
+
+(defn migrate []
+  (let [datasource (:datasource @pooled-db)
+        flyway (doto (Flyway.)
+                 (.setDataSource datasource)
+                 (.setSqlMigrationPrefix ""))]
+        (.migrate flyway)))
 
 (defn latest-games
   ([] (latest-games 25))

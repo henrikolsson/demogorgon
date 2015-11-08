@@ -22,11 +22,6 @@
     (doseq [x (range (count input))]
       (is (= (make-livelog-out (parse-line (nth input x)))
              (nth expected x))))))
-
-(deftest can-init-db
-  (let [config (get-resource "test.conf")]
-    (read-config config))
-  (nh-init-db))
  
 
 ;"version=UNH-5.3.0:player=Haudegen:turns=1:starttime=1424729580:currenttime=1424729581:dnum=0:dname=The Dungeons of Doom:dlev=1:maxlvl=1:dlev_name=:hp=11:maxhp=11:deaths=0:realtime=0:conduct=0xfff:role=Rog:race=Orc:gender=Mal:align=Cha:gender0=Mal:align0=Cha:explvl=1:exp=0:elbereths=0:xplevel=1:exp=0:mode=normal:gold=0:type=started:game_action=started:character= chaotic male orcish Rogue"
