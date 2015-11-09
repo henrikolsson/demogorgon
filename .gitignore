@@ -8,4 +8,6 @@ demogorgon.log
 /target/
 .lein-failures
 .nrepl-port
-src/demogorgon/version.clj
+src/clj/demogorgon/version.clj
+resources/public/js/demogorgon.js
+resources/public/js/out/

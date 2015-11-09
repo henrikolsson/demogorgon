@@ -59,6 +59,7 @@
         [:li [:a#nav-dashboard {"href" "/ascensions"} "ascensions"]]]]]]
     [:div#main.container
      content]
+    (include-js "/js/demogorgon.js")
     (include-js "/js/jquery-1.9.1.js")
     (include-js "/js/jquery-ui-1.10.3.custom.js")
     (include-js "/js/jquery.dataTables.min.js")

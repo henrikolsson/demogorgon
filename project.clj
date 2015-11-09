@@ -1,6 +1,6 @@
 (defproject demogorgon "1.1.6-SNAPSHOT"
   :description "demogorgon"
-  :dependencies [[org.clojure/clojure "1.6.0"]
+  :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.2.371"]
                  [org.apache.mina/mina-core  "2.0.9"]
                  [ring "1.4.0"]
@@ -17,15 +17,26 @@
                  [org.clojure/tools.nrepl "0.2.12"]
                  [org.clojure/tools.logging "0.3.1"]
                  [com.mchange/c3p0 "0.9.5"]
-                 [org.flywaydb/flyway-core "3.2.1"]]
+                 [org.flywaydb/flyway-core "3.2.1"]
+                 [org.clojure/clojurescript "1.7.122"]]
+  :source-paths ["src/clj" "src/cljs"]
   :profiles
   {:uberjar {:aot :all}
    :start
    {:repl-options 
     {:init-ns demogorgon.core}}}
   :plugins [[lein-tar "3.2.0"]
+            [lein-figwheel "0.4.1"]
             [org.clojars.cvillecsteele/lein-git-version "1.0.3"]]
+  :figwheel {:ring-handler demogorgon.web/main-routes
+             :nrepl-port 7888}
+  :cljsbuild {:builds [{:id "dev"
+                        :source-paths ["src/cljs"]
+                        :figwheel true
+                        :compiler {:main "demogorgon.core"
+                                   :asset-path "js/out"
+                                   :output-to "resources/public/js/demogorgon.js"
+                                   :output-dir "resources/public/js/out"}}]}
   :tar {:uberjar true}
   :jvm-opts ["-Xmx128m"]
   :main demogorgon.core)
-
