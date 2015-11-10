@@ -4,6 +4,9 @@
                  [org.clojure/core.async "0.2.371"]
                  [org.apache.mina/mina-core  "2.0.9"]
                  [ring "1.4.0"]
+                 [ring/ring-json "0.3.1"]
+                 [ring/ring-jetty-adapter "1.4.0"]
+                 [ring/ring-defaults "0.1.4"]
                  [compojure "1.4.0"]
                  [org.clojure/java.jdbc "0.4.2"]
                  [org.slf4j/slf4j-log4j12 "1.7.12"]
@@ -28,7 +31,7 @@
   :plugins [[lein-tar "3.2.0"]
             [lein-figwheel "0.4.1"]
             [org.clojars.cvillecsteele/lein-git-version "1.0.3"]]
-  :figwheel {:ring-handler demogorgon.web/main-routes
+  :figwheel {:ring-handler demogorgon.web/app
              :nrepl-port 7888}
   :cljsbuild {:builds [{:id "dev"
                         :source-paths ["src/cljs"]

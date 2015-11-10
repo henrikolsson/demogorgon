@@ -10,6 +10,9 @@
         [demogorgon.nh :only (parse-bitfield conducts)]
         [demogorgon.config])
   (:require [compojure.route :as route]
+            [ring.middleware.json :as middleware]
+            [ring.middleware.defaults :refer [wrap-defaults api-defaults]]
+            [ring.util.response :as resp]
             [clojure.java.jdbc :as sql]
             [clojure.tools.logging :as log]))
 
@@ -227,23 +230,33 @@
              [:br]])
           rs))))
 
+(defn index [req]
+  (resp/content-type (resp/resource-response "index.html" {:root "public"}) "text/html;charset=utf-8"))
+
 (defroutes main-routes
-  (GET "/last-games" [] (last-games))
-  (GET "/" [] (frontpage))
-  (GET "/highscores" [] (highscores 25))
-  (GET "/game/:id" [id] (game id))
-  (GET "/user/:name" [name] (user name))
-  (GET "/user/:name/" [name] (user name))
-  (GET "/users" [] (users))
-  (GET "/causes" [] (causes))
-  (GET "/ascensions" [] (ascensions))
-  (GET ["/cause/:cause-str", :cause-str #".+"] [cause-str] (cause cause-str))
-  (GET "/highscores/:limit" [limit] (highscores limit))
+  (GET "/" [] index)
+  (GET "/api/last-games" [] (last-games))
+  (GET "/api/" [] (frontpage))
+  (GET "/api/highscores" [] (highscores 25))
+  (GET "/api/game/:id" [id] (game id))
+  (GET "/api/user/:name" [name] (user name))
+  (GET "/api/user/:name/" [name] (user name))
+  (GET "/api/users" [] (users))
+  (GET "/api/causes" [] (causes))
+  (GET "/api/ascensions" [] (ascensions))
+  (GET ["/api/cause/:cause-str", :cause-str #".+"] [cause-str] (cause cause-str))
+  (GET "/api/highscores/:limit" [limit] (highscores limit))
   (route/resources "/")
-  (route/not-found (page-not-found)))
+  (route/not-found index))
+
+(def app
+  (-> main-routes
+      (middleware/wrap-json-body {:keywords? true :bigdecimals? true})
+      (middleware/wrap-json-response)
+      (wrap-defaults api-defaults)))
 
 (defn start-web []
-  (run-jetty #'main-routes {:port 8080 :join? false}))
+  (run-jetty #'app {:port 8080 :join? false}))
 
 (defn stop-web [j]
   (.stop j))
