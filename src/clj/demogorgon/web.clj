@@ -174,8 +174,8 @@
 
 (defn last-games []
   (let [rs (sql/query (:db @config) ["select * from xlogfile order by endtime desc limit ?" 25])]
-    (layout
-     (rs-to-table rs))))
+    (resp/response (take 2 (map #(assoc %1 :key (get %1 :id)) rs)))))
+
 
 (defn frontpage []
   (let [rs (sql/query (:db @config) ["select * from xlogfile order by endtime desc limit ?" 5])]

@@ -21,7 +21,10 @@
                  [org.clojure/tools.logging "0.3.1"]
                  [com.mchange/c3p0 "0.9.5"]
                  [org.flywaydb/flyway-core "3.2.1"]
-                 [org.clojure/clojurescript "1.7.122"]]
+                 [org.clojure/clojurescript "1.7.122"]
+                 [reagent "0.5.0"]
+                 [cljs-ajax "0.5.1"]
+                 [secretary "1.2.3"]]
   :source-paths ["src/clj" "src/cljs"]
   :profiles
   {:uberjar {:aot :all}
